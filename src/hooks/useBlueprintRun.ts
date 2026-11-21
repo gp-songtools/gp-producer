@@ -48,6 +48,7 @@ export function useBlueprintRun() {
       const base = {
         apiKey: anthropicKey,
         model: settings.claudeModel,
+        effort: settings.claudeEffort === 'default' ? undefined : settings.claudeEffort,
         inputs: { runtimeSec: project.runtimeSec, lrc: project.lrcLines, vision: project.vision, audioBrief: project.audioBrief },
         signal: ctrl.signal,
         onProgress: (p: { scenes: number }) => setScenesSeen(p.scenes),

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Phase } from '../../hooks/useBlueprintRun';
+import { EFFORT_OPTIONS, type EffortSetting } from '../../lib/settings';
 import { BOUNDARY_CODES } from '../../lib/ledger/validate';
 import type { Issue, Scene } from '../../types/blueprint';
 
@@ -30,6 +31,8 @@ export interface ToolbarProps {
   errors: Issue[];
   hasReview: boolean;
   canGenerate: boolean;
+  effort: EffortSetting;
+  onEffort: (e: EffortSetting) => void;
   onGenerate: () => void;
   onFix: () => void;
   onSnap: () => void;
@@ -52,6 +55,19 @@ export default function LedgerToolbar(p: ToolbarProps) {
         ) : (
           <button type="button" onClick={p.onCancel} className={`${btn} border-neutral-600 hover:bg-neutral-800`}>Cancel</button>
         )}
+
+        <label className="flex items-center gap-1.5 text-xs text-neutral-400">
+          Effort
+          <select
+            aria-label="Reasoning effort"
+            value={p.effort}
+            disabled={busy}
+            onChange={(e) => p.onEffort(e.target.value as EffortSetting)}
+            className="rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 text-xs text-neutral-200 disabled:opacity-40"
+          >
+            {EFFORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
 
         {hasBlueprint && !busy && boundaryErrors && (
           <button type="button" onClick={p.onSnap} className={`${btn} border-neutral-600 hover:bg-neutral-800`}>Snap boundaries</button>

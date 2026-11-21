@@ -35,6 +35,18 @@ describe('callTool request', () => {
     expect(body.system).toBe('sys');
   });
 
+  it('sends no output_config when effort is not set, so the model default applies', async () => {
+    const f = mockFetch([toolStream(validBlueprint())]);
+    await callTool(base(f.impl));
+    expect(f.calls[0].body).not.toHaveProperty('output_config');
+  });
+
+  it.each(['low', 'medium', 'high', 'xhigh', 'max'] as const)('sends output_config.effort = %s', async (effort) => {
+    const f = mockFetch([toolStream(validBlueprint())]);
+    await callTool(base(f.impl, { effort }));
+    expect(f.calls[0].body.output_config).toEqual({ effort });
+  });
+
   it('never puts the key anywhere but the header', async () => {
     const f = mockFetch([toolStream(validBlueprint())]);
     await callTool(base(f.impl));

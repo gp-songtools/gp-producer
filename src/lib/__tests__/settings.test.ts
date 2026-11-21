@@ -29,6 +29,13 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings('x')).toEqual(DEFAULT_SETTINGS);
     expect(sanitizeSettings({ claudeModel: 5, models: 'x', maxAnchorsPerScene: 'a' })).toEqual(DEFAULT_SETTINGS);
   });
+  it('accepts known effort levels and falls back to default for anything else', () => {
+    for (const e of ['default', 'low', 'medium', 'high', 'xhigh', 'max'])
+      expect(sanitizeSettings({ claudeEffort: e }).claudeEffort).toBe(e);
+    for (const bad of ['LOW', 'ultra', 5, null, undefined, {}]) expect(sanitizeSettings({ claudeEffort: bad }).claudeEffort).toBe('default');
+    expect(DEFAULT_SETTINGS.claudeEffort).toBe('default');
+  });
+
   it('trims, falls back per field and clamps the anchor cap', () => {
     const s = sanitizeSettings({ claudeModel: ' claude-x ', models: { hero: '  ', draft: 'd' }, maxAnchorsPerScene: 99 });
     expect(s.claudeModel).toBe('claude-x');
@@ -68,6 +75,12 @@ describe('settings store', () => {
     expect(settings.models.hero).toBe('my-hero');
     expect(settings.models.workhorse).toBe(DEFAULT_MODELS.workhorse);
     expect(settings.maxAnchorsPerScene).toBe(4);
+  });
+
+  it('persists the effort choice across a reload', () => {
+    useSettingsStore.getState().updateSettings({ claudeEffort: 'medium' });
+    useSettingsStore.getState().reload();
+    expect(useSettingsStore.getState().settings.claudeEffort).toBe('medium');
   });
 
   it('resets model roles to defaults', () => {

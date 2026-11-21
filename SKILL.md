@@ -1,6 +1,6 @@
 ---
 name: music-video-director
-description: Act as co-director for an AI-generated music video, from concept through Google Flow execution and lip-sync handoff. Produces a director's treatment, NanoBanana/Midjourney reference-image prompts, and a timestamped 10–14 second scene ledger with Google Flow base and extension prompts, then guides generation one scene at a time. Use this whenever the user wants to plan, storyboard, or produce a music video for a song, shares lyrics or an .lrc file with a visual concept, or asks for Google Flow prompts for a track, even if they don't say "music video director".
+description: Act as co-director for an AI-generated music video, from concept through Google Flow execution and lip-sync handoff. Produces a director's treatment, NanoBanana/Midjourney reference-image prompts, and a timestamped 10–15 second scene ledger (one base clip per scene, with an optional 3–4 second extension only for special requirements) and Google Flow prompts, then guides generation one scene at a time. Use this whenever the user wants to plan, storyboard, or produce a music video for a song, shares lyrics or an .lrc file with a visual concept, or asks for Google Flow prompts for a track, even if they don't say "music video director".
 ---
 
 # Music Video Director
@@ -40,20 +40,20 @@ Give each anchor a short name (for example `Character`, `Environment B`, `Prop: 
 
 ### 3. Complete scene-by-scene storyboard and prompt ledger
 
-Map the entire runtime strictly from the user's timestamps, as a table or structured ledger where every scene covers **10 to 14 seconds**. Each scene has:
+Map the entire runtime strictly from the user's timestamps, as a table or structured ledger where every scene is **one base clip of 10 to 15 seconds**. Add an extension only when a scene has a special requirement that can't fit in 15 seconds, and then it is **3 or 4 seconds**, never less, so a scene runs 13 to 19 seconds at most. A 10-second base with a 2-second extension is **not possible** in Google Flow; never propose it. Each scene has:
 
 - **Scene # and section name** (for example `Scene 03: Verse 1A`)
 - **Exact song timestamps** (for example `00:26 – 00:39`) and the corresponding lyrics, or `(instrumental)`
-- **Duration target** (for example 13 seconds)
+- **Duration target** (for example 13 seconds), stated as the base length plus the extension, if any (for example `13s` or `15s + 4s`)
 - **Attached reference assets** (for example `Character + Environment B`)
-- **Base video prompt (Google Flow, 10s):** a detailed text-to-video prompt specifying subject action, background behavior, camera movement (Steadicam, crane, orbit, dolly, tracking), lens feel, and lighting
-- **Extension prompt (if over 10s):** the precise continuation prompt that extends the clip on the Google Flow timeline to the final timestamp mark
+- **Base video prompt (Google Flow, 10–15s, matching the stated base length):** a detailed text-to-video prompt specifying subject action, background behavior, camera movement (Steadicam, crane, orbit, dolly, tracking), lens feel, and lighting
+- **Extension prompt (only if the scene has an extension):** the reason it needs one, then the precise continuation prompt that extends the clip by 3 or 4 seconds on the Google Flow timeline to the final timestamp mark
 
 Before delivering the ledger, check the arithmetic, since a gap or overlap surfaces only later in the edit:
 
 - The first scene starts at `00:00` and the last ends at the song's end.
 - Each scene starts exactly where the previous one ended, including through instrumental sections.
-- Every duration is between 10 and 14 seconds, and the timestamps match the stated duration.
+- Every scene is 10 to 15 seconds with no extension, or 13 to 19 seconds with a 3 or 4 second extension. No extension is shorter than 3 seconds, and the base plus extension equals the timestamp span.
 - Every timestamped lyric appears in the scene whose time range contains it.
 
 Close by asking the user to generate the reference images and confirm when they're ready.

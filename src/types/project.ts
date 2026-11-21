@@ -47,6 +47,8 @@ export interface ImageRecord {
   /** The prompt used, or null for an upload. */
   prompt: string | null;
   source: 'generated' | 'uploaded';
+  /** For scene frames: the anchor image ids sent as references, so a later anchor change can be detected. */
+  refImageIds?: string[];
   createdAt: number;
 }
 

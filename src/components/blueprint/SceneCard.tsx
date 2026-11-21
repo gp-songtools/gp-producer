@@ -5,6 +5,7 @@ import { isBackingVocal, lyricsInRange } from '../../lib/lrc';
 import type { Issue, LrcLine, Scene } from '../../types/blueprint';
 import type { StoredAnchor } from '../../types/project';
 import CopyButton from '../ui/CopyButton';
+import SceneFrame from './SceneFrame';
 import { sceneAnchorId } from './SceneTimeline';
 
 const badge = 'rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide';
@@ -21,9 +22,8 @@ function PromptBlock({ title, text, note, open }: { title: string; text: string;
   );
 }
 
-export default function SceneCard({ scene: s, anchors, lrc, issues }: { scene: Scene; anchors: StoredAnchor[]; lrc: LrcLine[]; issues: Issue[] }) {
+export default function SceneCard({ scene: s, anchors, lrc, issues, projectId, allScenes }: { scene: Scene; anchors: StoredAnchor[]; lrc: LrcLine[]; issues: Issue[]; projectId: string; allScenes: Scene[] }) {
   const lyrics = lyricsInRange(lrc, s.start_sec, s.end_sec);
-  const byId = new Map(anchors.map((a) => [a.id, a]));
   const backing = s.lip_sync ? backingLinesInWindow(lrc, s.lip_sync) : [];
   const hasError = issues.some((i) => i.severity === 'error');
   const tag = buildFileTag(s);
@@ -48,6 +48,8 @@ export default function SceneCard({ scene: s, anchors, lrc, issues }: { scene: S
         </div>
       </header>
 
+      <SceneFrame scene={s} anchors={anchors} allScenes={allScenes} projectId={projectId} />
+
       <div className="mt-3 rounded border border-neutral-800 bg-neutral-950/60 p-2 text-sm">
         {lyrics.length ? (
           <ul className="space-y-0.5">
@@ -61,17 +63,6 @@ export default function SceneCard({ scene: s, anchors, lrc, issues }: { scene: S
         ) : (
           <span className="italic text-neutral-500">(instrumental)</span>
         )}
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Attached reference anchors">
-        {s.anchor_ids.map((id) => {
-          const a = byId.get(id);
-          return (
-            <span key={id} className={`rounded-full border px-2 py-0.5 text-xs ${a ? 'border-neutral-600 text-neutral-200' : 'border-red-600 text-red-300'}`}>
-              {a ? a.name : `${id} (missing)`}
-            </span>
-          );
-        })}
       </div>
 
       <div className="mt-3 space-y-2">

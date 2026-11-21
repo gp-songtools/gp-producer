@@ -195,3 +195,15 @@ export async function promoteImage(id: string): Promise<void> {
   const [newest] = await listImages(rec.projectId, rec.ownerKey);
   await d.put('images', { ...rec, createdAt: Math.max(Date.now(), (newest?.createdAt ?? 0) + 1) });
 }
+
+/** Removes scene images whose scene number no longer exists (a new blueprint with fewer scenes). */
+export async function deleteSceneImagesAbove(projectId: string, sceneCount: number): Promise<void> {
+  const d = await db();
+  const rows = (await listProjectImages(projectId)).filter((r) => {
+    const m = /^scene:(\d+)$/.exec(r.ownerKey);
+    return m && Number(m[1]) > sceneCount;
+  });
+  const tx = d.transaction('images', 'readwrite');
+  for (const r of rows) tx.store.delete(r.id);
+  await tx.done;
+}

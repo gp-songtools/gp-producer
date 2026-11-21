@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, Outlet, useParams } from 'react-router-dom';
 import ProjectSwitcher from '../components/layout/ProjectSwitcher';
 import TabBar from '../components/layout/TabBar';
+import { useImageStore } from '../store/imageStore';
 import { useProjectStore } from '../store/projectStore';
 
 export default function ProjectLayout() {
@@ -12,6 +13,7 @@ export default function ProjectLayout() {
 
   useEffect(() => {
     void load(projectId);
+    void useImageStore.getState().load(projectId);
   }, [projectId, load]);
 
   // Write pending edits when leaving a project (or closing the tab).

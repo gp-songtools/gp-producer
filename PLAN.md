@@ -1,8 +1,10 @@
 # AI Music Video Director & Storyboard Studio: Build Plan
 
-Status: **REVISION 2, awaiting final approval. No application code or Vite scaffold exists yet.**
+Status: **REVISION 3, approved in principle; awaiting go-ahead to start M0. No application code or Vite scaffold exists yet.**
 
 **Changes in revision 2:** (a) Scene length rules replaced: base clip 10–15 s, optional extension 3–4 s, enforced as separate fields (§2.2a). (b) Three Gemini model roles: workhorse, hero and draft (§3.2). (c) Key-exposure risk and file-tag format accepted (§0).
+
+**Changes in revision 3:** Scenes default to **one base clip of 10–15 s**. An extension (3–4 s, up to 19 s total) is allowed only for a stated special requirement (`extension_reason`). `SKILL.md` is corrected to match (§9).
 
 A client-side, BYOK web app on GitHub Pages that turns the `/music-video-director` skill (`SKILL.md` and `references/gemini-audio-brief.md` in this repo) into a visual workspace. Claude acts as Co-Director. Gemini (Nano Banana) renders the 16:9 anchors and storyboard frames.
 
@@ -18,7 +20,7 @@ A client-side, BYOK web app on GitHub Pages that turns the `/music-video-directo
 | 4 | **File tag format** | **Confirmed:** `{NN}_{SectionSlug}_{startSec}-{endSec}.mp4`, whole seconds, built client-side from locked fields (e.g. `03_Verse1A_26-39.mp4`). |
 | 5 | **Images stored as Blobs, not base64** | IndexedDB stores `Blob`s (about 33% smaller, no huge strings in memory). Base64 exists only at the API boundary and in exports. |
 | 6 | **Routing** | HashRouter. GitHub Pages has no SPA fallback, so deep links on BrowserRouter would 404. |
-| 7 | **Scene length rules** | Base clip **10–15 s**; optional extension **3–4 s**; a 2 s extension (or 10 s + 2 s) is **invalid**. Total scene length is therefore 10–15 s (no extension) or 13–19 s (with one). Every integer from 10 to 19 is reachable, so any runtime of 10 s or more can be tiled. Rules live in one config object (§2.2a) so they can change without touching validator logic. **Assumption to confirm:** one extension per scene, and the whole 10–19 s range is allowed. |
+| 7 | **Scene length rules** | **Default: one base clip, 10–15 s, no extension.** An extension of **3–4 s** is allowed only when the scene has a special requirement that needs more than 15 s, giving 13–19 s in total. A 2 s extension (or 10 s + 2 s) is **invalid**. Every runtime of 10 s or more can be tiled. Rules live in one config object (§2.2a). |
 | 8 | **Reference-image limits** | Gemini image models degrade with many references (roughly 3 for the Flash image model, more for Pro). Default cap: **3 anchors per scene** (configurable). Anchors are downscaled to a 1536 px long edge before sending to stay under inline request-size limits. |
 
 ---
@@ -165,7 +167,7 @@ gp-producer/
       "type": "array", "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["scene", "section", "start_sec", "end_sec", "base_sec", "extension_sec", "duration_sec",
+        "required": ["scene", "section", "start_sec", "end_sec", "base_sec", "extension_sec", "extension_reason", "duration_sec",
                      "anchor_ids", "keyframe_prompt", "base_prompt", "extension_prompt", "lip_sync"],
         "properties": {
           "scene":        { "type": "integer", "minimum": 1 },
@@ -174,6 +176,7 @@ gp-producer/
           "end_sec":      { "type": "integer", "minimum": 1 },
           "base_sec":      { "type": "integer", "minimum": 10, "maximum": 15, "description": "Length of the Google Flow base clip" },
           "extension_sec": { "type": ["integer", "null"], "enum": [3, 4, null], "description": "Length of the extension, or null for none. Never 1 or 2." },
+          "extension_reason": { "type": ["string", "null"], "description": "Required when extension_sec is set: the special requirement that cannot fit in 15s. Otherwise null." },
           "duration_sec":  { "type": "integer", "minimum": 10, "maximum": 19, "description": "Must equal base_sec + (extension_sec ?? 0) and end_sec - start_sec" },
           "anchor_ids":   { "type": "array", "minItems": 1, "items": { "type": "string" },
                             "description": "Must reference anchors[].id" },
@@ -212,7 +215,7 @@ export const SCENE_RULES = {
   baseMin: 10, baseMax: 15,        // Google Flow base clip, seconds
   extMin: 3,  extMax: 4,           // one optional extension, seconds
 } as const;
-// Total scene length D: 10..15 (no extension) or 13..19 (base + extension).
+// Default: base only, D = 10..15. Extension only for a special requirement (D = 13..19 incl. extension).
 ```
 
 | Scene length D | Valid splits (base + ext) | Preferred |
@@ -223,7 +226,7 @@ export const SCENE_RULES = {
 | 18 | 15+3, 14+4 | 15+3 |
 | 19 | 15+4 | 15+4 |
 
-**Always invalid:** 10+1, 10+2, 11+2, any extension under 3 s or over 4 s, any base under 10 s or over 15 s, any scene over 19 s. The system prompt includes this table and the explicit counter-example "10 s base + 2 s extension is not possible". Claude should use an extension only when the scene needs more than 15 s, with 10–15 s base-only scenes as the default, and must state `base_sec` and `extension_sec` itself, so the validator can check the split rather than infer it.
+**Always invalid:** 10+1, 10+2, 11+2, any extension under 3 s or over 4 s, any base under 10 s or over 15 s, any scene over 19 s. The system prompt includes this table and the explicit counter-example "10 s base + 2 s extension is not possible". **Claude's brief:** plan every scene as a single base clip of 10–15 s. Use an extension only for a special requirement that cannot fit in 15 s (for example a continuous move that must complete, a held performance beat, or a transition that has to land on a specific musical hit), and then state it in `extension_reason`. Claude must state `base_sec` and `extension_sec` itself, so the validator checks the split rather than infers it. In the UI, scenes with extensions carry an "Extended" badge showing the reason, and the ledger toolbar shows how many scenes use one.
 
 ### 2.3 Client-side validation (`lib/ledger/validate.ts`)
 
@@ -290,6 +293,7 @@ export function validateLedger(
     }
 
     if (s.extension_sec !== null && !s.extension_prompt) err('MISSING_EXTENSION', `A ${s.extension_sec}s extension needs an extension prompt.`, n);
+    if (s.extension_sec !== null && !s.extension_reason?.trim()) err('NO_EXTENSION_REASON', 'An extension needs a stated special requirement.', n);
     if (s.extension_sec === null && s.extension_prompt) err('ORPHAN_EXTENSION', 'Extension prompt present but extension_sec is null.', n);
 
     if (s.anchor_ids.length === 0) err('NO_ANCHORS', 'No reference anchors attached.', n);
@@ -537,10 +541,12 @@ Audio upload to any API, automatic beat detection, Google Flow automation (the a
 
 ---
 
-## 9. Needs your approval
+## 9. Decisions
 
-Resolved: model roles, key-exposure risk and file-tag format.
+All open questions are resolved:
 
-1. Is the scene rule I inferred right: base clip 10–15 s, then at most one 3–4 s extension, for scenes of 10–19 s in total? If you want a lower ceiling (say 10–15 s total, or a cap of 17 s), it's a one-line config change.
-2. Should the repo's own `SKILL.md` also be corrected to these rules (it still says 10–14 s scenes with a 10 s base)? I haven't touched it.
-3. Anything else to add or cut before M0?
+- Model roles, key-exposure risk and file-tag format: accepted.
+- Scene length: single base clip of 10–15 s by default; a 3–4 s extension (13–19 s total) only for a stated special requirement.
+- `SKILL.md` (and its `music-video-director/` copy) is corrected to the same rules in this branch.
+
+**Next step:** start M0 (scaffold, Pages workflow, deploy) on `claude/wizardly-dirac-vazkwu`, on your go-ahead.

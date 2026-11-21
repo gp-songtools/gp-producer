@@ -3,6 +3,7 @@ import { ApiError, BlueprintError, isAbort } from '../lib/api/errors';
 import { generateBlueprint, makeRunRecord, repairBlueprint, type FlowResult } from '../lib/api/blueprintFlow';
 import { toBlueprint } from '../lib/blueprint';
 import { snapBoundaries } from '../lib/ledger/normalize';
+import { useImageStore } from '../store/imageStore';
 import { useProjectStore } from '../store/projectStore';
 import { useSettingsStore } from '../store/settingsStore';
 import type { Issue } from '../types/blueprint';
@@ -64,6 +65,7 @@ export function useBlueprintRun() {
         }
         if (ctrl.signal.aborted) return;
         await setBlueprint(result.blueprint, makeRunRecord(project.id, result));
+        await useImageStore.getState().load(project.id);
         const left = result.issues.filter((i) => i.severity === 'error').length;
         setNotice(
           left > 0

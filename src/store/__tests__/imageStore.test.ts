@@ -7,7 +7,11 @@ import { useSettingsStore } from '../settingsStore';
 
 const gen = vi.hoisted(() => ({ fn: vi.fn() }));
 vi.mock('../../lib/api/gemini', async (orig) => ({ ...(await orig<typeof import('../../lib/api/gemini')>()), generateImage: (...a: unknown[]) => gen.fn(...a) }));
-vi.mock('../../lib/image', async (orig) => ({ ...(await orig<typeof import('../../lib/image')>()), imageDimensions: async () => ({ width: 1376, height: 768 }) }));
+vi.mock('../../lib/image', async (orig) => ({
+  ...(await orig<typeof import('../../lib/image')>()),
+  imageDimensions: async () => ({ width: 1376, height: 768 }),
+  prepareReference: async (b: Blob) => ({ mimeType: 'image/png', data: `ref:${await b.text()}` }),
+}));
 
 const ok = () => ({ blob: new Blob(['x'], { type: 'image/png' }), mimeType: 'image/png', text: '' });
 const A = { id: 'character', prompt: 'keeper' };
@@ -140,7 +144,7 @@ describe('imageStore', () => {
       gen.fn.mockImplementation((req: { signal: AbortSignal }) => new Promise((_r, rej) => req.signal.addEventListener('abort', () => rej(new DOMException('Aborted', 'AbortError')))));
       const run = useImageStore.getState().generateMissing(p.id, [A, B, C]);
       await tick(5);
-      useImageStore.getState().cancelBatch();
+      useImageStore.getState().cancelBatch('batch');
       await run;
       expect(useImageStore.getState().batch).toMatchObject({ done: 0, failed: 0, running: false, cancelled: true });
       expect(gen.fn).toHaveBeenCalledTimes(2); // the third was never started
@@ -178,6 +182,98 @@ describe('imageStore', () => {
       await s.removeCurrent(p.id, 'anchor:character');
       expect(useImageStore.getState().images).toHaveLength(1);
       expect(newest().source).toBe('uploaded');
+    });
+  });
+
+  describe('scene frames', () => {
+    const S1 = { scene: 1, keyframe_prompt: 'frame one', anchor_ids: ['character', 'environment_a'] };
+    const S2 = { scene: 2, keyframe_prompt: 'frame two', anchor_ids: ['character'] };
+    const S3 = { scene: 3, keyframe_prompt: 'frame three', anchor_ids: [] };
+    const anchors = [{ id: 'character', name: 'Character' }, { id: 'environment_a', name: 'Environment A' }];
+
+    it('sends the labelled anchor images that exist, with the scene prompt, and stores the frame by scene number', async () => {
+      const p = await setup();
+      await useImageStore.getState().generateAnchor(p.id, A, 'workhorse'); // character image
+      gen.fn.mockClear();
+      await useImageStore.getState().generateFrame(p.id, S1, anchors, 'workhorse');
+      const req = gen.fn.mock.calls[0][0] as { references: { label: string; data: string }[]; prompt: string; model: string };
+      expect(req.references).toHaveLength(1); // environment_a has no image yet
+      expect(req.references[0].label).toBe('Character');
+      expect(req.references[0].data).toMatch(/^ref:/);
+      expect(req.prompt).toMatch(/^frame one/);
+      const frame = useImageStore.getState().images.find((r) => r.ownerKey === 'scene:1')!;
+      expect(frame).toMatchObject({ kind: 'keyframe', prompt: 'frame one' });
+      expect(frame.refImageIds).toHaveLength(1);
+    });
+
+    it('respects the per-scene reference cap from Settings', async () => {
+      const p = await setup();
+      for (const a of [A, B, C]) await useImageStore.getState().generateAnchor(p.id, a, 'workhorse');
+      useSettingsStore.getState().updateSettings({ maxAnchorsPerScene: 2 });
+      gen.fn.mockClear();
+      const scene = { scene: 1, keyframe_prompt: 'f', anchor_ids: ['character', 'environment_a', 'prop_lamp'] };
+      const all = [{ id: 'character', name: 'Character' }, { id: 'environment_a', name: 'Env' }, { id: 'prop_lamp', name: 'Lamp' }];
+      await useImageStore.getState().generateFrame(p.id, scene, all, 'workhorse');
+      expect((gen.fn.mock.calls[0][0] as { references: { label: string }[] }).references.map((r) => r.label)).toEqual(['Character', 'Env']);
+    });
+
+    it('uses the model for the chosen role and shows errors on the scene\'s card', async () => {
+      const p = await setup();
+      useSettingsStore.getState().updateSettings({ models: { hero: 'hero-x' } });
+      await useImageStore.getState().generateFrame(p.id, S3, anchors, 'hero');
+      expect((gen.fn.mock.calls[0][0] as { model: string }).model).toBe('hero-x');
+      gen.fn.mockRejectedValue(new ApiError('Gemini is overloaded', 503, 'x'));
+      await useImageStore.getState().generateFrame(p.id, S2, anchors, 'workhorse');
+      expect((useImageStore.getState().jobs['scene:2'] as { message: string }).message).toMatch(/overloaded/);
+    });
+
+    it('batch renders the given scenes two at a time and counts them', async () => {
+      const p = await setup();
+      let live = 0;
+      let peak = 0;
+      gen.fn.mockImplementation(async () => { peak = Math.max(peak, ++live); await tick(5); live--; return ok(); });
+      await useImageStore.getState().generateFrames(p.id, [S1, S2, S3], anchors);
+      expect(peak).toBe(2);
+      expect(useImageStore.getState().frameBatch).toMatchObject({ total: 3, done: 3, failed: 0, running: false });
+      expect(useImageStore.getState().batch).toBeNull(); // the anchor batch is untouched
+      expect(useImageStore.getState().images.filter((r) => r.kind === 'keyframe')).toHaveLength(3);
+    });
+
+    it('a frame batch and an anchor batch run and cancel independently', async () => {
+      const p = await setup();
+      gen.fn.mockImplementation((req: { signal: AbortSignal }) => new Promise((res, rej) => {
+        const t = setTimeout(() => res(ok()), 30);
+        req.signal.addEventListener('abort', () => { clearTimeout(t); rej(new DOMException('Aborted', 'AbortError')); });
+      }));
+      const anchorsRun = useImageStore.getState().generateMissing(p.id, [A, B]);
+      const framesRun = useImageStore.getState().generateFrames(p.id, [S1, S2], anchors);
+      await tick(5);
+      useImageStore.getState().cancelBatch('frameBatch');
+      await Promise.all([anchorsRun, framesRun]);
+      expect(useImageStore.getState().frameBatch).toMatchObject({ done: 0, cancelled: true, running: false });
+      expect(useImageStore.getState().batch).toMatchObject({ done: 2, cancelled: false, running: false });
+    });
+
+    it('frames made later in a batch see anchor images made earlier', async () => {
+      const p = await setup();
+      gen.fn.mockClear();
+      await useImageStore.getState().generateAnchor(p.id, A, 'workhorse');
+      await useImageStore.getState().generateFrames(p.id, [S2], anchors);
+      const frameCall = gen.fn.mock.calls.find((c) => ((c[0] as { references?: unknown[] }).references?.length ?? 0) > 0);
+      expect(frameCall).toBeDefined();
+    });
+
+    it('skips scenes that are already generating', async () => {
+      const p = await setup();
+      let release!: () => void;
+      gen.fn.mockImplementation(() => new Promise((res) => { release = () => res(ok()); }));
+      const first = useImageStore.getState().generateFrame(p.id, S1, anchors, 'workhorse');
+      await tick();
+      gen.fn.mockClear();
+      await useImageStore.getState().generateFrames(p.id, [S1], anchors);
+      expect(gen.fn).not.toHaveBeenCalled();
+      release();
+      await first;
     });
   });
 });

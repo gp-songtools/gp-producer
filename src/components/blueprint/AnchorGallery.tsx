@@ -37,7 +37,7 @@ export default function AnchorGallery({ anchors, projectId }: { anchors: StoredA
         <div className="no-print flex items-center gap-2">
           <span className="text-xs text-neutral-500">{withImage}/{anchors.length} with images</span>
           {batch?.running ? (
-            <button type="button" onClick={cancelBatch} className={btn}>Cancel</button>
+            <button type="button" onClick={() => cancelBatch('batch')} className={btn}>Cancel</button>
           ) : (
             <button type="button" onClick={start} disabled={!geminiKey || missing.length === 0} className={btn} title={geminiKey ? undefined : 'Add a Gemini API key in Settings'}>
               Generate missing ({missing.length})
@@ -66,7 +66,7 @@ export default function AnchorGallery({ anchors, projectId }: { anchors: StoredA
             <div key={category}>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">{label}</h3>
               <div className="grid gap-3 md:grid-cols-2">
-                {group.map((a) => <AnchorCard key={a.id} anchor={a} projectId={projectId} />)}
+                {group.map((a) => <AnchorCard key={a.id} anchor={a} projectId={projectId} siblings={anchors} />)}
               </div>
             </div>
           );

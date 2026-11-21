@@ -1,33 +1,20 @@
 import { useRef, useState } from 'react';
 import { extForMime, useBlobUrl } from '../../hooks/useBlobUrl';
+import { anchorLightbox } from '../../lib/lightboxItems';
+import { useLightboxStore } from '../../store/lightboxStore';
+import ImageHistory from './ImageHistory';
 import { imagesForOwner, isStale } from '../../lib/anchorImages';
 import { isWidescreen } from '../../lib/image';
 import type { ModelRoles } from '../../lib/settings';
 import { useImageStore } from '../../store/imageStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { anchorOwner, type ImageRecord, type StoredAnchor } from '../../types/project';
+import { anchorOwner, type StoredAnchor } from '../../types/project';
 import CopyButton from '../ui/CopyButton';
 
 const btn = 'rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40';
 const ROLE_LABEL: Record<keyof ModelRoles, string> = { workhorse: 'Workhorse', hero: 'Hero', draft: 'Draft' };
 
-function Thumb({ img, onUse }: { img: ImageRecord; onUse: () => void }) {
-  const url = useBlobUrl(img.blob, img.id);
-  const when = new Date(img.createdAt).toLocaleString();
-  return (
-    <button
-      type="button"
-      onClick={onUse}
-      title={`Use this version (${img.source === 'uploaded' ? 'uploaded' : img.model}, ${when})`}
-      aria-label={`Use earlier version from ${when}`}
-      className="h-10 w-[4.5rem] shrink-0 overflow-hidden rounded border border-neutral-700 bg-black hover:border-amber-400"
-    >
-      {url && <img src={url} alt="" className="h-full w-full object-cover" />}
-    </button>
-  );
-}
-
-export default function AnchorCard({ anchor, projectId }: { anchor: StoredAnchor; projectId: string }) {
+export default function AnchorCard({ anchor, projectId, siblings }: { anchor: StoredAnchor; projectId: string; siblings: StoredAnchor[] }) {
   const owner = anchorOwner(anchor.id);
   const all = useImageStore((s) => s.images);
   const job = useImageStore((s) => s.jobs[owner]);
@@ -36,6 +23,7 @@ export default function AnchorCard({ anchor, projectId }: { anchor: StoredAnchor
   const models = useSettingsStore((s) => s.settings.models);
   const [role, setRole] = useState<keyof ModelRoles>('workhorse');
   const fileRef = useRef<HTMLInputElement>(null);
+  const openLightbox = useLightboxStore((s) => s.open);
 
   const [current, ...older] = imagesForOwner(all, owner);
   const url = useBlobUrl(current?.blob, current?.id);
@@ -53,7 +41,17 @@ export default function AnchorCard({ anchor, projectId }: { anchor: StoredAnchor
 
       <div className="relative mt-2 aspect-video overflow-hidden rounded border border-neutral-800 bg-black">
         {url ? (
-          <img src={url} alt={`${anchor.name} reference`} className="h-full w-full object-contain" />
+          <button
+            type="button"
+            aria-label={`Enlarge ${anchor.name}`}
+            className="h-full w-full cursor-zoom-in"
+            onClick={() => {
+              const { items, index } = anchorLightbox(siblings, all, anchor.id);
+              openLightbox(items, index);
+            }}
+          >
+            <img src={url} alt={`${anchor.name} reference`} className="h-full w-full object-contain" />
+          </button>
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-neutral-600">{running ? '' : 'No image yet'}</div>
         )}
@@ -121,14 +119,7 @@ export default function AnchorCard({ anchor, projectId }: { anchor: StoredAnchor
         </p>
       )}
 
-      {older.length > 0 && (
-        <div className="mt-2">
-          <p className="mb-1 text-[11px] text-neutral-500">Earlier versions</p>
-          <div className="flex gap-1.5">
-            {older.map((img) => <Thumb key={img.id} img={img} onUse={() => void promote(projectId, img.id)} />)}
-          </div>
-        </div>
-      )}
+      <ImageHistory older={older} onUse={(id) => void promote(projectId, id)} />
 
       <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-neutral-300">{anchor.prompt}</p>
     </article>

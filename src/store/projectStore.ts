@@ -69,6 +69,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (!p) return;
       const next = { ...p, treatment, updatedAt: Date.now() };
       await db.replaceBlueprint(p.id, anchors, scenes);
+      // Frames for scenes that no longer exist would be orphaned (and invisible); drop them.
+      await db.deleteSceneImagesAbove(p.id, scenes.length);
       await db.putProject(next);
       if (run) await db.addRun(run);
       dirty = false;

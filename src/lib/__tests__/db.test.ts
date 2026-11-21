@@ -197,3 +197,17 @@ describe('images', () => {
     expect(await db.listProjectImages(p2.id)).toHaveLength(1);
   });
 });
+
+describe('deleteSceneImagesAbove', () => {
+  it('removes only scene images beyond the new scene count, in the right project', async () => {
+    const a = await db.createProject();
+    const b = await db.createProject();
+    for (const n of [1, 5, 10, 11]) await db.putImage(img(a.id, sceneOwner(n), n));
+    await db.putImage(img(a.id, anchorOwner('character'), 1));
+    await db.putImage(img(b.id, sceneOwner(11), 1));
+    await db.deleteSceneImagesAbove(a.id, 10);
+    const left = (await db.listProjectImages(a.id)).map((r) => r.ownerKey).sort();
+    expect(left).toEqual(['anchor:character', 'scene:1', 'scene:10', 'scene:5']);
+    expect(await db.listProjectImages(b.id)).toHaveLength(1);
+  });
+});

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorGallery from '../components/blueprint/AnchorGallery';
+import FrameToolbar from '../components/blueprint/FrameToolbar';
 import LedgerToolbar from '../components/blueprint/LedgerToolbar';
 import SceneCard from '../components/blueprint/SceneCard';
 import SceneTimeline from '../components/blueprint/SceneTimeline';
@@ -37,7 +38,7 @@ export default function BlueprintPage() {
   const hasReview = scenes.some((s) => s.needs_review);
 
   const generate = () => {
-    if (hasBlueprint && !window.confirm('Replace the current blueprint with a new one? Prompt changes are lost. Anchor images are kept where the anchor id matches.')) return;
+    if (hasBlueprint && !window.confirm('Replace the current blueprint with a new one? Prompt changes are lost. Anchor images are kept where the anchor id matches. Storyboard frames are kept but flagged "prompt changed" where the scene prompt differs, and frames beyond the new scene count are deleted.')) return;
     void run.generate();
   };
 
@@ -94,9 +95,10 @@ export default function BlueprintPage() {
           <AnchorGallery anchors={anchors} projectId={project.id} />
           <section aria-label="Scene ledger" className="space-y-3">
             <h2 className="text-base font-semibold">Storyboard & scene ledger</h2>
+            <FrameToolbar scenes={scenes} anchors={anchors} projectId={project.id} />
             <SceneTimeline scenes={scenes} runtimeSec={T} byScene={byScene} />
             {scenes.map((s) => (
-              <SceneCard key={s.scene} scene={s} anchors={anchors} lrc={project.lrcLines} issues={byScene.get(s.scene) ?? []} />
+              <SceneCard key={s.scene} scene={s} anchors={anchors} lrc={project.lrcLines} issues={byScene.get(s.scene) ?? []} projectId={project.id} allScenes={scenes} />
             ))}
           </section>
         </>

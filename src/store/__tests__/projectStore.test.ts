@@ -88,4 +88,17 @@ describe('projectStore', () => {
     expect(useProjectStore.getState().scenes).toHaveLength(2);
     expect(await db.getScenes(p.id)).toHaveLength(2);
   });
+
+  it('setBlueprint drops frames for scenes beyond the new count but keeps the rest and all anchor images', async () => {
+    const p = await db.createProject();
+    const mk = (owner: `anchor:${string}` | `scene:${number}`, n: number) => ({
+      id: `${owner}-${n}`, projectId: p.id, ownerKey: owner, kind: owner.startsWith('anchor') ? 'anchor' : 'keyframe',
+      blob: new Blob(['x']), mime: 'image/png', width: 1, height: 1, model: 'm', prompt: 'p', source: 'generated', createdAt: n,
+    }) as never;
+    for (const o of ['scene:1', 'scene:4', 'scene:9', 'anchor:character'] as const) await db.putImage(mk(o, 1));
+    const st = useProjectStore.getState();
+    await st.load(p.id);
+    await st.setBlueprint({ treatment, anchors: [{ id: 'character', name: 'C', category: 'character', prompt: 'x' }], scenes: goodLedger() }); // 4 scenes
+    expect((await db.listProjectImages(p.id)).map((r) => r.ownerKey).sort()).toEqual(['anchor:character', 'scene:1', 'scene:4']);
+  });
 });

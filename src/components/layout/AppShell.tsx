@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
+import LightboxHost from '../ui/LightboxHost';
 import SettingsModal from './SettingsModal';
 
 export default function AppShell() {
@@ -21,6 +22,7 @@ export default function AppShell() {
         <Outlet />
       </main>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <LightboxHost />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { Blueprint } from '../schemas/blueprint';
 import { blueprintSchema } from '../schemas/blueprint';
-import type { BlueprintAnchor, BlueprintScene, Issue, Treatment } from '../types/blueprint';
+import type { BlueprintAnchor, BlueprintScene, Issue, Scene, Treatment } from '../types/blueprint';
 
 export type ParseResult = { ok: true; blueprint: Blueprint } | { ok: false; problems: string[] };
 
@@ -77,4 +77,19 @@ export function issuesToText(issues: Issue[], limit = 40): string {
   const lines = errors.slice(0, limit).map((i) => `- ${i.scene ? `Scene ${i.scene} ` : ''}[${i.code}] ${i.message}`);
   if (errors.length > limit) lines.push(`- …and ${errors.length - limit} more.`);
   return lines.join('\n');
+}
+
+/**
+ * Scenes whose length was changed by boundary snapping: their prompts were written for the old length.
+ * Shown as warnings; sent to Claude as errors when asking for a fix.
+ */
+export function needsReviewIssues(scenes: Scene[], severity: Issue['severity']): Issue[] {
+  return scenes
+    .filter((s) => s.needs_review)
+    .map((s) => ({
+      severity,
+      code: 'NEEDS_REVIEW',
+      scene: s.scene,
+      message: `Boundary snapping changed this scene to ${s.base_sec}s base${s.extension_sec ? ` + ${s.extension_sec}s extension` : ''}. Rewrite its prompts to fit that length.`,
+    }));
 }

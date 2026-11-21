@@ -43,3 +43,27 @@ export type Issue = {
   scene?: number;
   message: string;
 };
+
+export type AnchorCategory = 'character' | 'environment' | 'prop';
+
+export interface BlueprintAnchor {
+  /** Stable slug, e.g. "character", "environment_b", "prop_telephone". */
+  id: string;
+  /** Display name used everywhere: "Character", "Environment B", "Prop: Telephone". */
+  name: string;
+  category: AnchorCategory;
+  /** Standalone 16:9 image prompt. */
+  prompt: string;
+}
+
+export interface Treatment {
+  title: string;
+  paragraphs: string[];
+  facets: {
+    narrative_metaphor: string;
+    visual_symbolism: string;
+    pacing_arc: string;
+    camera_language: string;
+    color_progression: string;
+  };
+}

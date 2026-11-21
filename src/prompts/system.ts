@@ -43,5 +43,5 @@ export function buildSystemPrompt(): string {
 - keyframe_prompt: one still frame that best represents the scene (typically its opening composition), for the image model, in 16:9 with the same visual language as the anchors. Describe a single moment, not motion.
 - lip_sync: set only for scenes with a close-up singing performance, with the exact vocal_start_sec and vocal_end_sec (song time, from the lyric timestamps) of the sung line. For those scenes: keep the singer's face the largest in frame, clearly visible and mostly front-facing; keep the mouth unobstructed (microphone below or beside it, hands and hair clear); avoid dissolves, whip pans, strobing or glitch effects inside the shot; avoid very fast cutting during sung lines. Save effects for transitions and shots that don't need syncing. Otherwise lip_sync is null.
 
-Do not write file names or tags; the app generates them. Respond only by calling ${TOOL_NAME}.`;
+Do not write file names or tags; the app generates them. Your entire response must be one call to the ${TOOL_NAME} tool: write no text before or after it.`;
 }

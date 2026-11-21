@@ -1,4 +1,4 @@
-import { ApiError, BlueprintError, friendlyAnthropicError, isAbort, NETWORK_MESSAGE } from './errors';
+import { ApiError, BlueprintError, friendlyAnthropicError, isAbort, NETWORK_MESSAGE, NoToolCallError } from './errors';
 import { MAX_ATTEMPTS, RETRYABLE, retryDelayMs, sleep as realSleep, type Sleep } from './retry';
 import { readSse } from './sse';
 
@@ -72,7 +72,8 @@ export function buildRequest(r: ToolCallRequest): { headers: Record<string, stri
       stream: true,
       system: r.system,
       tools: [r.tool],
-      tool_choice: { type: 'tool', name: r.tool.name },
+      // Newer models (e.g. Sonnet 5.5) reject forced tool_choice with a 400. "auto" plus an explicit instruction works everywhere.
+      tool_choice: { type: 'auto' },
       messages: r.messages,
     }),
   };
@@ -115,7 +116,7 @@ async function postWithRetry(r: ToolCallRequest): Promise<Response> {
   }
 }
 
-/** Calls the Messages API with a forced tool and returns the tool's input once the stream completes. */
+/** Calls the Messages API with one tool available and returns the tool's input once the stream completes. */
 export async function callTool(r: ToolCallRequest): Promise<ToolCallResult> {
   const res = await postWithRetry(r);
   if (!res.body) throw new BlueprintError('Anthropic returned an empty response.');
@@ -123,6 +124,7 @@ export async function callTool(r: ToolCallRequest): Promise<ToolCallResult> {
   let toolUseId = '';
   let sawTool = false;
   let json = '';
+  let text = '';
   let tail = '';
   let scenes = 0;
   let stopReason: string | null = null;
@@ -148,6 +150,7 @@ export async function callTool(r: ToolCallRequest): Promise<ToolCallResult> {
           }
           break;
         case 'content_block_delta':
+          if (data.delta?.type === 'text_delta') text += data.delta.text ?? '';
           if (data.delta?.type === 'input_json_delta') {
             const piece: string = data.delta.partial_json ?? '';
             // The tail is shorter than the key, so no match can sit entirely inside it and be counted twice.
@@ -176,7 +179,7 @@ export async function callTool(r: ToolCallRequest): Promise<ToolCallResult> {
 
   if (stopReason === 'max_tokens')
     throw new BlueprintError('Claude ran out of output space before finishing. Try again, or use a shorter song or brief.');
-  if (!sawTool) throw new BlueprintError("Claude didn't return a blueprint.");
+  if (!sawTool) throw new NoToolCallError(text);
 
   let input: unknown = {};
   if (json.trim()) {

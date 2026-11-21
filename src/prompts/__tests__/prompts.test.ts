@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SCENE_RULES } from '../../lib/ledger/rules';
 import { sceneSchema, TOOL_INPUT_SCHEMA, TOOL_NAME } from '../../schemas/blueprint';
 import { emptyVision } from '../../types/project';
-import { buildBlueprintUserMessage, buildRepairMessage } from '../blueprintUser';
+import { buildBlueprintUserMessage, buildRepairMessage, buildRepairUserMessage } from '../blueprintUser';
 import { buildSystemPrompt } from '../system';
 
 describe('system prompt', () => {
@@ -30,8 +30,9 @@ describe('system prompt', () => {
     expect(s).toMatch(/Do not write file names/);
   });
 
-  it('names the tool it must call', () => {
+  it('names the tool and says the whole response must be that one call (tool choice can\'t be forced)', () => {
     expect(s).toContain(TOOL_NAME);
+    expect(s).toMatch(/entire response must be one call to the submit_blueprint tool/);
   });
 
   it('is built from the same SCENE_RULES the validator uses', () => {
@@ -66,6 +67,14 @@ describe('user message', () => {
 
   it('builds a repair message around the problems', () => {
     expect(buildRepairMessage('- Scene 2 [GAP] x')).toContain('- Scene 2 [GAP] x');
+  });
+
+  it('builds a self-contained correction message that quotes the previous submission', () => {
+    const m = buildRepairUserMessage('ORIGINAL', { a: 1 }, '- Scene 2 [GAP] x');
+    expect(m.startsWith('ORIGINAL')).toBe(true);
+    expect(m).toContain('<previous_submission>\n{"a":1}\n</previous_submission>');
+    expect(m).toContain('- Scene 2 [GAP] x');
+    expect(m).toMatch(/call submit_blueprint/);
   });
 });
 

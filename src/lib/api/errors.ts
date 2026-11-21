@@ -21,6 +21,14 @@ export class BlueprintError extends Error {
   }
 }
 
+/** Claude answered in text instead of calling the tool (possible because forced tool choice isn't supported on newer models). */
+export class NoToolCallError extends BlueprintError {
+  constructor(readonly text: string) {
+    super(text.trim() ? `Claude replied with text instead of a blueprint: "${text.trim().slice(0, 200)}"` : "Claude didn't return a blueprint.");
+    this.name = 'NoToolCallError';
+  }
+}
+
 export const isAbort = (e: unknown) => e instanceof DOMException && e.name === 'AbortError';
 
 /** Turns an Anthropic error response into something a person can act on. */

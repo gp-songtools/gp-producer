@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { BlueprintError } from '../errors';
+import { BlueprintError, NoToolCallError } from '../errors';
 import { generateBlueprint, makeRunRecord, repairBlueprint } from '../blueprintFlow';
-import { gappyBlueprint, inputs, mockFetch, noSleep, toolStream, validBlueprint } from './fixtures';
+import { gappyBlueprint, inputs, mockFetch, noSleep, textStream, toolStream, validBlueprint } from './fixtures';
 
 const opts = (f: ReturnType<typeof mockFetch>, over = {}) => ({
   apiKey: 'k',
@@ -33,6 +33,8 @@ describe('generateBlueprint', () => {
     expect(body.messages[0].content).toContain('"runtime_sec": 50');
     expect(body.messages[0].content).toContain('"text": "sing"');
     expect(body.system).toContain('10-second base with a 2-second extension is NOT possible');
+    expect(body.tool_choice).toEqual({ type: 'auto' });
+    expect(body.messages[0].content).toContain('calling the submit_blueprint tool');
   });
 
   it('does one repair pass for a ledger error, sending the failed tool result back', async () => {
@@ -46,13 +48,18 @@ describe('generateBlueprint', () => {
     expect(r.usage).toEqual({ input_tokens: 250, output_tokens: 450 });
     expect(r.attempts).toHaveLength(2);
 
+    // The correction is one self-contained user message: no replayed assistant turn, no fabricated tool result.
     const second = f.calls[1].body.messages;
-    expect(second).toHaveLength(3);
-    expect(second[1].role).toBe('assistant');
-    expect(second[1].content[0]).toMatchObject({ type: 'tool_use', id: 'toolu_first', name: 'submit_blueprint' });
-    expect(second[2].content[0]).toMatchObject({ type: 'tool_result', tool_use_id: 'toolu_first', is_error: true });
-    expect(second[2].content[0].content).toMatch(/Scene 2 \[GAP\]/);
-    expect(f.calls[1].body.tool_choice).toEqual({ type: 'tool', name: 'submit_blueprint' });
+    expect(second).toHaveLength(1);
+    expect(second[0].role).toBe('user');
+    const text = second[0].content as string;
+    expect(typeof text).toBe('string');
+    expect(text).toContain('<project_inputs>');
+    expect(text).toContain('<previous_submission>');
+    expect(text).toContain('"start_sec":14'); // the gappy scene the model submitted
+    expect(text).toMatch(/Scene 2 \[GAP\]/);
+    expect(JSON.stringify(f.calls[1].body)).not.toMatch(/tool_result|"tool_use"/);
+    expect(f.calls[1].body.tool_choice).toEqual({ type: 'auto' });
   });
 
   it('repairs when the structure is wrong (zod), listing the problems', async () => {
@@ -60,7 +67,7 @@ describe('generateBlueprint', () => {
     const f = mockFetch([toolStream(bad), toolStream(validBlueprint())]);
     const r = await generateBlueprint(opts(f));
     expect(r.repaired).toBe(true);
-    expect(f.calls[1].body.messages[2].content[0].content).toMatch(/scenes/);
+    expect(f.calls[1].body.messages[0].content).toMatch(/scenes/);
   });
 
   it('fills missing nullable fields instead of failing', async () => {
@@ -98,7 +105,7 @@ describe('generateBlueprint', () => {
     bad.scenes[0] = { ...bad.scenes[0], base_sec: 10, extension_sec: 2, extension_reason: 'x', extension_prompt: 'e' };
     const f = mockFetch([toolStream(bad), toolStream(validBlueprint())]);
     const r = await generateBlueprint(opts(f));
-    expect(f.calls[1].body.messages[2].content[0].content).toMatch(/BAD_SPLIT/);
+    expect(f.calls[1].body.messages[0].content).toMatch(/BAD_SPLIT/);
     expect(r.issues.filter((i) => i.severity === 'error')).toEqual([]);
   });
 
@@ -111,6 +118,35 @@ describe('generateBlueprint', () => {
   it('propagates API errors untouched', async () => {
     const f = mockFetch([new TypeError('Failed to fetch')]);
     await expect(generateBlueprint(opts(f))).rejects.toThrow(/Couldn't reach Anthropic/);
+  });
+});
+
+describe('Claude answers in text instead of calling the tool', () => {
+  it('retries once with its reply quoted and an explicit request to call the tool', async () => {
+    const f = mockFetch([textStream('Happy to help. Shall I start?'), toolStream(validBlueprint())]);
+    const r = await generateBlueprint(opts(f));
+    expect(f.calls).toHaveLength(2);
+    expect(r.repaired).toBe(false);
+    const msgs = f.calls[1].body.messages;
+    expect(msgs.map((m: { role: string }) => m.role)).toEqual(['user', 'assistant', 'user']);
+    expect(msgs[1].content).toBe('Happy to help. Shall I start?');
+    expect(msgs[2].content).toMatch(/Call the submit_blueprint tool now/);
+  });
+
+  it('gives up with a clear error if it happens twice', async () => {
+    const f = mockFetch([textStream('No.'), textStream('Still no.')]);
+    const e = await generateBlueprint(opts(f)).catch((x) => x);
+    expect(e).toBeInstanceOf(NoToolCallError);
+    expect(e.message).toContain('Still no.');
+    expect(f.calls).toHaveLength(2);
+  });
+
+  it('also covers the correction call', async () => {
+    const f = mockFetch([toolStream(gappyBlueprint()), textStream('Let me think.'), toolStream(validBlueprint())]);
+    const r = await generateBlueprint(opts(f));
+    expect(f.calls).toHaveLength(3);
+    expect(r.repaired).toBe(true);
+    expect(r.issues.filter((i) => i.severity === 'error')).toEqual([]);
   });
 });
 
@@ -131,7 +167,7 @@ describe('extras validation through the flow', () => {
 });
 
 describe('repairBlueprint', () => {
-  it('sends the current blueprint as a failed tool_use, stripped of client fields', async () => {
+  it('sends the current blueprint as quoted JSON, stripped of client fields', async () => {
     const current = gappyBlueprint();
     Object.assign(current.scenes[0], { needs_review: true, projectId: 'p1' });
     const f = mockFetch([toolStream(validBlueprint())]);
@@ -141,10 +177,12 @@ describe('repairBlueprint', () => {
     const r = await repairBlueprint({ ...opts(f), current: ev.blueprint, issues: ev.issues });
     expect(r.repaired).toBe(true);
     const msgs = f.calls[0].body.messages;
-    expect(msgs[1].content[0].id).toBe('toolu_current_blueprint');
-    expect(msgs[1].content[0].input.scenes[0]).not.toHaveProperty('projectId');
-    expect(msgs[1].content[0].input.scenes[0]).not.toHaveProperty('needs_review');
-    expect(msgs[2].content[0].content).toMatch(/\[GAP\]/);
+    expect(msgs).toHaveLength(1);
+    const text = msgs[0].content as string;
+    const quoted = JSON.parse(text.slice(text.indexOf('<previous_submission>') + 21, text.indexOf('</previous_submission>')));
+    expect(quoted.scenes[0]).not.toHaveProperty('projectId');
+    expect(quoted.scenes[0]).not.toHaveProperty('needs_review');
+    expect(text).toMatch(/\[GAP\]/);
   });
 
   it('refuses when there are no errors to fix', async () => {

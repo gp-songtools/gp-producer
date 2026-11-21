@@ -29,6 +29,17 @@ export class NoToolCallError extends BlueprintError {
   }
 }
 
+/** Gemini declined to produce an image (safety, policy, or no image in the reply). */
+export class ImageBlockedError extends Error {
+  constructor(
+    message: string,
+    readonly reason: string,
+  ) {
+    super(message);
+    this.name = 'ImageBlockedError';
+  }
+}
+
 export const isAbort = (e: unknown) => e instanceof DOMException && e.name === 'AbortError';
 
 /** Turns an Anthropic error response into something a person can act on. */

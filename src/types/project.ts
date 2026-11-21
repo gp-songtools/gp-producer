@@ -28,6 +28,28 @@ export interface Project {
 export type StoredAnchor = BlueprintAnchor & { projectId: string; order: number };
 export type StoredScene = Scene & { projectId: string };
 
+/** What an image belongs to: an anchor (by its id, so it survives a re-blueprint) or a scene (by number). */
+export type ImageOwner = `anchor:${string}` | `scene:${number}`;
+export const anchorOwner = (id: string): ImageOwner => `anchor:${id}`;
+export const sceneOwner = (n: number): ImageOwner => `scene:${n}`;
+
+export interface ImageRecord {
+  id: string;
+  projectId: string;
+  ownerKey: ImageOwner;
+  kind: 'anchor' | 'keyframe';
+  blob: Blob;
+  mime: string;
+  width: number;
+  height: number;
+  /** Model ID that produced it, or null for an upload. */
+  model: string | null;
+  /** The prompt used, or null for an upload. */
+  prompt: string | null;
+  source: 'generated' | 'uploaded';
+  createdAt: number;
+}
+
 export interface RunRecord {
   id: string;
   projectId: string;

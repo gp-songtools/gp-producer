@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { CLAUDE_MODEL_PRESETS, DEFAULT_MODELS, EFFORT_OPTIONS, MAX_ANCHORS_LIMIT, type EffortSetting } from '../../lib/settings';
+import { CLAUDE_MODEL_PRESETS, EFFORT_OPTIONS, type EffortSetting } from '../../lib/settings';
 import { formatBytes, getStorageInfo, requestPersistence, type StorageInfo } from '../../lib/storage';
 import { useSettingsStore } from '../../store/settingsStore';
+import GeminiModels from './GeminiModels';
 
 const input = 'w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-amber-400';
 const label = 'block text-xs font-medium text-neutral-400 mb-1';
@@ -34,7 +35,7 @@ function KeyField({ id, text, value, onSave }: { id: string; text: string; value
 }
 
 export default function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { anthropicKey, geminiKey, settings, persistent, setAnthropicKey, setGeminiKey, updateSettings, resetModels, forgetKeys } =
+  const { anthropicKey, geminiKey, settings, persistent, setAnthropicKey, setGeminiKey, updateSettings, forgetKeys } =
     useSettingsStore();
   const [storage, setStorage] = useState<StorageInfo | null>(null);
   const isPreset = CLAUDE_MODEL_PRESETS.some((p) => p.id === settings.claudeModel);
@@ -130,47 +131,7 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
           </div>
         </section>
 
-        <section className="mt-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Gemini image models</h3>
-            <button type="button" onClick={resetModels} className="text-xs text-neutral-400 underline hover:text-neutral-200">
-              Reset to defaults
-            </button>
-          </div>
-          {(
-            [
-              ['workhorse', 'Workhorse (default for anchors and keyframes)'],
-              ['hero', 'Hero (hero anchors, strict continuity)'],
-              ['draft', 'Draft (quick, cheap)'],
-            ] as const
-          ).map(([role, text]) => (
-            <div key={role}>
-              <label htmlFor={`model-${role}`} className={label}>{text}</label>
-              <input
-                id={`model-${role}`}
-                key={settings.models[role]}
-                className={input}
-                defaultValue={settings.models[role]}
-                placeholder={DEFAULT_MODELS[role]}
-                spellCheck={false}
-                onBlur={(e) => e.target.value.trim() !== settings.models[role] && updateSettings({ models: { [role]: e.target.value } })}
-              />
-            </div>
-          ))}
-          <p className="text-xs text-neutral-500">These IDs are unverified free text. A "Test & list models" check arrives with image generation.</p>
-          <div>
-            <label htmlFor="max-anchors" className={label}>Max reference anchors per scene keyframe</label>
-            <input
-              id="max-anchors"
-              type="number"
-              min={1}
-              max={MAX_ANCHORS_LIMIT}
-              className={`${input} w-24`}
-              value={settings.maxAnchorsPerScene}
-              onChange={(e) => updateSettings({ maxAnchorsPerScene: Number(e.target.value) })}
-            />
-          </div>
-        </section>
+        <GeminiModels />
 
         <section className="mt-6 space-y-2">
           <h3 className="text-sm font-semibold">Storage</h3>

@@ -1,12 +1,12 @@
-import { buildBlueprintUserMessage, buildRepairMessage, type BlueprintInputs } from '../../prompts/blueprintUser';
+import { buildBlueprintUserMessage, buildRepairUserMessage, NUDGE_MESSAGE, type BlueprintInputs } from '../../prompts/blueprintUser';
 import { buildSystemPrompt } from '../../prompts/system';
-import { BLUEPRINT_TOOL, TOOL_NAME, type Blueprint } from '../../schemas/blueprint';
+import { BLUEPRINT_TOOL, type Blueprint } from '../../schemas/blueprint';
 import type { Issue } from '../../types/blueprint';
 import type { RunRecord } from '../../types/project';
 import { issuesToText, parseBlueprint, validateBlueprintExtras } from '../blueprint';
 import { hasErrors, validateLedger } from '../ledger/validate';
 import { callTool, type Message, type ToolCallProgress, type ToolCallResult, type Usage } from './anthropic';
-import { BlueprintError } from './errors';
+import { BlueprintError, NoToolCallError } from './errors';
 import type { Sleep } from './retry';
 
 export interface FlowOptions {
@@ -45,8 +45,6 @@ export function evaluate(input: unknown, inputs: BlueprintInputs): Evaluation {
   return { ok: true, blueprint: bp, issues };
 }
 
-const asObject = (x: unknown): Record<string, unknown> => (x && typeof x === 'object' && !Array.isArray(x) ? (x as Record<string, unknown>) : {});
-
 const addUsage = (a: Usage, b: Usage): Usage => ({
   input_tokens: a.input_tokens + b.input_tokens,
   output_tokens: a.output_tokens + b.output_tokens,
@@ -67,24 +65,18 @@ const call = (o: FlowOptions, messages: Message[]): Promise<ToolCallResult> =>
   });
 
 /**
- * Feeds a blueprint and its problems back to Claude as a failed tool result, forcing a corrected resubmit.
+ * Asks Claude to correct a blueprint, as one fresh message that quotes the previous submission and the problems.
  * Exactly one extra call; whatever comes back is returned with its remaining issues.
  */
 async function repairPass(
   o: FlowOptions,
   userMessage: string,
   previousInput: unknown,
-  toolUseId: string,
   problemsText: string,
   first: ToolCallResult | null,
 ): Promise<FlowResult> {
   o.onStatus?.('repairing');
-  const messages: Message[] = [
-    { role: 'user', content: userMessage },
-    { role: 'assistant', content: [{ type: 'tool_use', id: toolUseId, name: TOOL_NAME, input: asObject(previousInput) }] },
-    { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content: buildRepairMessage(problemsText), is_error: true }] },
-  ];
-  const second = await call(o, messages);
+  const second = await callWithNudge(o, [{ role: 'user', content: buildRepairUserMessage(userMessage, previousInput, problemsText) }]);
   const ev = evaluate(second.input, o.inputs);
   if (!ev.ok) throw new BlueprintError("Claude's blueprint didn't match the expected structure, even after a correction.", ev.problems);
   return {
@@ -97,25 +89,41 @@ async function repairPass(
   };
 }
 
+/**
+ * Tool choice can't be forced on newer models, so Claude may occasionally answer in text.
+ * Retry once with the reply quoted and an explicit request to call the tool.
+ */
+async function callWithNudge(o: FlowOptions, messages: Message[]): Promise<ToolCallResult> {
+  try {
+    return await call(o, messages);
+  } catch (e) {
+    if (!(e instanceof NoToolCallError)) throw e;
+    const nudge: Message[] = [...messages];
+    if (e.text.trim()) nudge.push({ role: 'assistant', content: e.text.trim() });
+    nudge.push({ role: 'user', content: NUDGE_MESSAGE });
+    return call(o, nudge);
+  }
+}
+
 /** Generates a blueprint, with one automatic correction pass if it fails validation. */
 export async function generateBlueprint(o: FlowOptions): Promise<FlowResult> {
   const userMessage = buildBlueprintUserMessage(o.inputs);
   o.onStatus?.('generating');
-  const first = await call(o, [{ role: 'user', content: userMessage }]);
+  const first = await callWithNudge(o, [{ role: 'user', content: userMessage }]);
   const ev = evaluate(first.input, o.inputs);
 
   if (ev.ok && !hasErrors(ev.issues))
     return { blueprint: ev.blueprint, issues: ev.issues, repaired: false, usage: first.usage, model: o.model, attempts: [first.input] };
 
   const problems = ev.ok ? issuesToText(ev.issues) : ev.problems.map((p) => `- ${p}`).join('\n');
-  return repairPass(o, userMessage, first.input, first.toolUseId, problems, first);
+  return repairPass(o, userMessage, first.input, problems, first);
 }
 
 /** Asks Claude to fix an existing blueprint (for example after Snap boundaries left prompts needing review). */
 export async function repairBlueprint(o: FlowOptions & { current: Blueprint; issues: Issue[] }): Promise<FlowResult> {
   const problems = issuesToText(o.issues);
   if (!problems) throw new BlueprintError('There is nothing to fix: no errors were found.');
-  return repairPass(o, buildBlueprintUserMessage(o.inputs), o.current, 'toolu_current_blueprint', problems, null);
+  return repairPass(o, buildBlueprintUserMessage(o.inputs), o.current, problems, null);
 }
 
 export function makeRunRecord(projectId: string, r: FlowResult, kind: RunRecord['kind'] = 'blueprint'): RunRecord {

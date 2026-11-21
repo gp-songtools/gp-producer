@@ -112,7 +112,7 @@ gp-producer/
 - **Lyrics are not emitted by Claude.** The client derives each scene's lyrics from the `.lrc` by time range, so lyric placement is correct by construction. (The skill's "every timestamped lyric appears in the scene whose range contains it" check becomes deterministic.)
 - **File tags and LIP-SYNC framing reminders are client-generated**, so they are not in the schema.
 - A separate `keyframe_prompt` (a single still frame) is requested per scene. Feeding a video prompt to an image model produces worse stills.
-- Output is forced through **tool use** (`tool_choice: {type:"tool", name:"submit_blueprint"}`) so the result is valid JSON matching `input_schema`. (Forced tool choice rules out extended thinking, which is fine here. Validation plus one auto-repair pass covers quality.)
+- Output is returned through **tool use**: one tool, `submit_blueprint`, with `tool_choice: {type:"auto"}` and a system-prompt rule that the whole response must be that one call. **Forced tool choice (`type: "tool"`/`"any"`) is not used**: newer models such as `claude-sonnet-5-5` reject it with a 400 (found on the first live run). Because Claude can therefore answer in text, the client retries once with a nudge. Validation plus one auto-repair pass covers quality.
 
 ### 2.2 Phase 1 schema (`submit_blueprint` tool `input_schema`)
 
@@ -330,7 +330,7 @@ export function validateLedger(
 
 **Deterministic repair (`normalize.ts`):** if the only errors are `GAP`, `OVERLAP`, `START_NOT_ZERO` or `END_MISMATCH`, offer a "Snap boundaries" button. It sets each `start = previous end`, forces the first start to 0 and the last end to the runtime, and recomputes durations. It re-derives each split using the preferred column in §2.2a, and applies the result only if every duration then lands in 10–19 s. Any scene whose split changed (extension added, removed or resized) is flagged "prompts need review", because its extension prompt no longer matches. Otherwise it shows the one-click **"Ask Claude to fix"** option below.
 
-**Auto-repair loop:** after the Claude call, if `validateLedger` returns errors, make **one** follow-up call that includes the failing issue list and the prior tool result, asking for a corrected `submit_blueprint`. If errors remain, show them in the banner and let you edit or re-ask. Nothing is silently accepted.
+**Auto-repair loop:** after the Claude call, if `validateLedger` returns errors, make **one** follow-up call: a single self-contained user message that restates the inputs, quotes the previous submission and lists the failing issues, asking for a corrected `submit_blueprint`. (It does not replay the model's earlier turn with a fabricated tool result: newer models tie their thinking blocks to the conversation that produced them.) If errors remain, show them in the banner and let you edit or re-ask. Nothing is silently accepted.
 
 **Other client rules:** the `.lrc` parser handles `[mm:ss.xx]` and `[mm:ss.xxx]`, multiple timestamps per line, and ignores metadata tags (`[ar:]`, `[ti:]`, `[offset:]`, with offset applied). Lyric lines are kept as `{t: number (sec, fractional), text}`.
 
@@ -359,7 +359,7 @@ content-type: application/json
     "description": "Submit the Director's Treatment, Reference Anchors and Scene Ledger.",
     "input_schema": { /* §2.2 */ }
   }],
-  "tool_choice": { "type": "tool", "name": "submit_blueprint" },
+  "tool_choice": { "type": "auto" },
   "messages": [{
     "role": "user",
     "content": "<project_inputs>\n{\n \"runtime_sec\": 214,\n \"scene_rules\": {\"base_sec\": [10,15], \"extension_sec\": [3,4], \"invalid_example\": \"10s base + 2s extension\"}, \"allowed_scene_counts\": [12,13,14,15,16,17,18,19,20,21],\n \"lrc\": [{\"t\": 26.4, \"text\": \"...\"}, ...],\n \"section_guide\": \"...\",\n \"vision\": {\"narrative_arc\": \"...\", \"visual_tone\": \"...\", \"mood\": \"...\", \"palette\": \"...\", \"aesthetic\": \"35mm anamorphic, ...\"},\n \"gemini_audio_brief\": \"...or null\"\n}\n</project_inputs>"
@@ -370,7 +370,7 @@ content-type: application/json
 - **Streaming:** the ledger for a 4-minute song is large, so non-streaming risks a browser or proxy timeout. The client reads SSE events and accumulates `content_block_delta` → `input_json_delta.partial_json`. On `message_stop` it `JSON.parse`s the buffer and runs zod. The UI shows scene count progress.
 - **Non-stream response shape** (for reference): `{ "content": [{ "type": "tool_use", "name": "submit_blueprint", "input": { …blueprint… } }], "stop_reason": "tool_use", "usage": {...} }`. If `stop_reason === "max_tokens"` the JSON is truncated: show an error and offer to retry with higher `max_tokens`.
 - **Audio never leaves the browser.** Only the `.lrc`, text inputs and the pasted brief are sent.
-- **Revision call:** same endpoint, `tool_choice` forced to `submit_revision`. The message contains the treatment, the attached anchors' names and prompts, the current scene prompts, the scene's lyrics, and your description of what went wrong. Timestamps and the file tag appear as read-only context labelled "LOCKED". The tool schema has no fields for them. The client merges only the returned prompt fields and stores the old values in `scene.revisions[]` for undo.
+- **Revision call:** same endpoint, `submit_revision` is the only tool, with `tool_choice` `auto`. The message contains the treatment, the attached anchors' names and prompts, the current scene prompts, the scene's lyrics, and your description of what went wrong. Timestamps and the file tag appear as read-only context labelled "LOCKED". The tool schema has no fields for them. The client merges only the returned prompt fields and stores the old values in `scene.revisions[]` for undo.
 - **Errors:** `401` bad key, `429` rate limit (honor `retry-after`), `529` overloaded (backoff 2 s, 5 s, 12 s), `400` surfaced verbatim.
 
 ### 3.2 Gemini image generation (browser)

@@ -69,6 +69,17 @@ export function toolStream(
   return streamResponse(sseText(events), o.chunkSize ?? 23);
 }
 
+/** A response where Claude answers in plain text and never calls the tool. */
+export function textStream(text: string, chunk = 9): Response {
+  const events: Record<string, unknown>[] = [
+    { type: 'message_start', message: { usage: { input_tokens: 7, output_tokens: 1 } } },
+    { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+  ];
+  for (let i = 0; i < text.length; i += chunk) events.push({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: text.slice(i, i + chunk) } });
+  events.push({ type: 'content_block_stop', index: 0 }, { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }, { type: 'message_stop' });
+  return streamResponse(sseText(events));
+}
+
 export const errorResponse = (status: number, type: string, message: string, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify({ type: 'error', error: { type, message } }), { status, headers: { 'content-type': 'application/json', ...headers } });
 

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { callTool, DEFAULT_MAX_TOKENS } from '../anthropic';
-import { ApiError, BlueprintError } from '../errors';
+import { ApiError, BlueprintError, NoToolCallError } from '../errors';
 import { BLUEPRINT_TOOL } from '../../../schemas/blueprint';
-import { errorResponse, mockFetch, noSleep, sseText, streamResponse, toolStream, validBlueprint } from './fixtures';
+import { errorResponse, mockFetch, noSleep, sseText, streamResponse, textStream, toolStream, validBlueprint } from './fixtures';
 
 const base = (fetchImpl: typeof fetch, over = {}) => ({
   apiKey: 'sk-ant-secret',
@@ -16,7 +16,7 @@ const base = (fetchImpl: typeof fetch, over = {}) => ({
 });
 
 describe('callTool request', () => {
-  it('sends the browser-access header, forced tool choice, streaming and the key', async () => {
+  it('sends the browser-access header, auto tool choice, streaming and the key', async () => {
     const f = mockFetch([toolStream(validBlueprint())]);
     await callTool(base(f.impl));
     const [{ url, init, body }] = f.calls;
@@ -29,7 +29,8 @@ describe('callTool request', () => {
     expect(body.model).toBe('claude-sonnet-5-5');
     expect(body.stream).toBe(true);
     expect(body.max_tokens).toBe(DEFAULT_MAX_TOKENS);
-    expect(body.tool_choice).toEqual({ type: 'tool', name: 'submit_blueprint' });
+    // Forced tool choice ("tool"/"any") is rejected by newer models with a 400, so it must never be sent.
+    expect(body.tool_choice).toEqual({ type: 'auto' });
     expect(body.tools).toHaveLength(1);
     expect(body.system).toBe('sys');
   });
@@ -67,7 +68,51 @@ describe('callTool response', () => {
 
   it('throws when no tool call is made', async () => {
     const f = mockFetch([toolStream({}, { noTool: true })]);
-    await expect(callTool(base(f.impl))).rejects.toBeInstanceOf(BlueprintError);
+    const e = await callTool(base(f.impl)).catch((x) => x);
+    expect(e).toBeInstanceOf(NoToolCallError);
+    expect(e).toBeInstanceOf(BlueprintError);
+    expect(e.message).toMatch(/didn't return a blueprint/);
+  });
+
+  it('captures what Claude said when it answers in text instead of calling the tool', async () => {
+    const f = mockFetch([textStream('I would be happy to help! Which song is this for?', 7)]);
+    const e = await callTool(base(f.impl)).catch((x) => x);
+    expect(e).toBeInstanceOf(NoToolCallError);
+    expect(e.text).toBe('I would be happy to help! Which song is this for?');
+    expect(e.message).toContain('replied with text');
+  });
+
+  it('ignores a text preamble when the tool is also called', async () => {
+    const bp = validBlueprint();
+    const json = JSON.stringify(bp);
+    const text = sseText([
+      { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+      { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Sure, here you go.' } },
+      { type: 'content_block_stop', index: 0 },
+      { type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 'toolu_p', name: 'submit_blueprint', input: {} } },
+      { type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: json } },
+      { type: 'content_block_stop', index: 1 },
+      { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 3 } },
+    ]);
+    const f = mockFetch([streamResponse(text)]);
+    const r = await callTool(base(f.impl));
+    expect(r.input).toEqual(bp);
+    expect(r.toolUseId).toBe('toolu_p');
+  });
+
+  it('ignores thinking blocks streamed before the tool call', async () => {
+    const bp = validBlueprint();
+    const text = sseText([
+      { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } },
+      { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'let me count the scenes' } },
+      { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'abc' } },
+      { type: 'content_block_stop', index: 0 },
+      { type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 'toolu_t', name: 'submit_blueprint', input: {} } },
+      { type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: JSON.stringify(bp) } },
+      { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 3 } },
+    ]);
+    const f = mockFetch([streamResponse(text)]);
+    expect((await callTool(base(f.impl))).input).toEqual(bp);
   });
 
   it('throws on malformed JSON from the tool', async () => {

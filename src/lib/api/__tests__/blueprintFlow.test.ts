@@ -121,6 +121,32 @@ describe('generateBlueprint', () => {
   });
 });
 
+describe('effort', () => {
+  it('is sent on the first call and on the correction call, and recorded', async () => {
+    const f = mockFetch([toolStream(gappyBlueprint()), toolStream(validBlueprint())]);
+    const r = await generateBlueprint(opts(f, { effort: 'medium' }));
+    expect(f.calls.map((c) => c.body.output_config)).toEqual([{ effort: 'medium' }, { effort: 'medium' }]);
+    expect(r.effort).toBe('medium');
+    expect((makeRunRecord('p', r).payload as { effort: string }).effort).toBe('medium');
+  });
+
+  it('is omitted, and recorded as null, when not chosen', async () => {
+    const f = mockFetch([toolStream(validBlueprint())]);
+    const r = await generateBlueprint(opts(f));
+    expect(f.calls[0].body).not.toHaveProperty('output_config');
+    expect(r.effort).toBeNull();
+  });
+
+  it('is also sent when asking Claude to fix an existing blueprint', async () => {
+    const f = mockFetch([toolStream(validBlueprint())]);
+    const { evaluate } = await import('../blueprintFlow');
+    const ev = evaluate(gappyBlueprint(), inputs());
+    if (!ev.ok) throw new Error('fixture should parse');
+    await repairBlueprint({ ...opts(f, { effort: 'low' }), current: ev.blueprint, issues: ev.issues });
+    expect(f.calls[0].body.output_config).toEqual({ effort: 'low' });
+  });
+});
+
 describe('Claude answers in text instead of calling the tool', () => {
   it('retries once with its reply quoted and an explicit request to call the tool', async () => {
     const f = mockFetch([textStream('Happy to help. Shall I start?'), toolStream(validBlueprint())]);

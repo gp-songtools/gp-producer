@@ -1,4 +1,5 @@
 import { ApiError, BlueprintError, friendlyAnthropicError, isAbort, NETWORK_MESSAGE, NoToolCallError } from './errors';
+import type { Effort } from '../settings';
 import { MAX_ATTEMPTS, RETRYABLE, retryDelayMs, sleep as realSleep, type Sleep } from './retry';
 import { readSse } from './sse';
 
@@ -41,6 +42,8 @@ export interface ToolCallRequest {
   tool: ToolDef;
   messages: Message[];
   maxTokens?: number;
+  /** Reasoning effort. Omit to use the model's default. */
+  effort?: Effort;
   signal?: AbortSignal;
   onProgress?: (p: ToolCallProgress) => void;
   /** Injectable for tests. */
@@ -75,6 +78,7 @@ export function buildRequest(r: ToolCallRequest): { headers: Record<string, stri
       // Newer models (e.g. Sonnet 5.5) reject forced tool_choice with a 400. "auto" plus an explicit instruction works everywhere.
       tool_choice: { type: 'auto' },
       messages: r.messages,
+      ...(r.effort ? { output_config: { effort: r.effort } } : {}),
     }),
   };
 }

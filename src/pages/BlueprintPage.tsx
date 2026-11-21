@@ -17,6 +17,8 @@ export default function BlueprintPage() {
   const anchors = useProjectStore((s) => s.anchors);
   const scenes = useProjectStore((s) => s.scenes);
   const hasKey = useSettingsStore((s) => !!s.anthropicKey);
+  const effort = useSettingsStore((s) => s.settings.claudeEffort);
+  const updateSettings = useSettingsStore((s) => s.updateSettings);
   const run = useBlueprintRun();
   const { errors, warnings, byScene, forFix } = useLedgerIssues();
 
@@ -59,6 +61,8 @@ export default function BlueprintPage() {
         errors={errors}
         hasReview={hasReview}
         canGenerate={missing.length === 0}
+        effort={effort}
+        onEffort={(e) => updateSettings({ claudeEffort: e })}
         onGenerate={generate}
         onFix={() => void run.fix(forFix)}
         onSnap={() => void run.snap()}

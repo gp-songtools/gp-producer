@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CLAUDE_MODEL_PRESETS, DEFAULT_MODELS, MAX_ANCHORS_LIMIT } from '../../lib/settings';
+import { CLAUDE_MODEL_PRESETS, DEFAULT_MODELS, EFFORT_OPTIONS, MAX_ANCHORS_LIMIT, type EffortSetting } from '../../lib/settings';
 import { formatBytes, getStorageInfo, requestPersistence, type StorageInfo } from '../../lib/storage';
 import { useSettingsStore } from '../../store/settingsStore';
 
@@ -112,6 +112,21 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
                 onBlur={(e) => e.target.value.trim() && updateSettings({ claudeModel: e.target.value })}
               />
             )}
+          </div>
+          <div>
+            <label htmlFor="claude-effort" className={label}>Reasoning effort</label>
+            <select
+              id="claude-effort"
+              className={input}
+              value={settings.claudeEffort}
+              onChange={(e) => updateSettings({ claudeEffort: e.target.value as EffortSetting })}
+            >
+              {EFFORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <p className="mt-1 text-xs text-neutral-500">
+              Lower effort is cheaper and faster, because Claude's reasoning bills as output. It may be less careful with the timestamp
+              arithmetic. "Model default" sends nothing. Not every model accepts every level.
+            </p>
           </div>
         </section>
 

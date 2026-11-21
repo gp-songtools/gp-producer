@@ -8,6 +8,7 @@ import { hasErrors, validateLedger } from '../ledger/validate';
 import { callTool, type Message, type ToolCallProgress, type ToolCallResult, type Usage } from './anthropic';
 import { BlueprintError, NoToolCallError } from './errors';
 import type { Sleep } from './retry';
+import type { Effort } from '../settings';
 
 export interface FlowOptions {
   apiKey: string;
@@ -19,6 +20,7 @@ export interface FlowOptions {
   fetchImpl?: typeof fetch;
   sleep?: Sleep;
   maxTokens?: number;
+  effort?: Effort;
 }
 
 export interface FlowResult {
@@ -29,6 +31,8 @@ export interface FlowResult {
   repaired: boolean;
   usage: Usage;
   model: string;
+  /** The effort that was sent, or null for the model's default. */
+  effort: Effort | null;
   /** Raw tool inputs from each attempt, kept for the run history. */
   attempts: unknown[];
 }
@@ -58,6 +62,7 @@ const call = (o: FlowOptions, messages: Message[]): Promise<ToolCallResult> =>
     tool: BLUEPRINT_TOOL,
     messages,
     maxTokens: o.maxTokens,
+    effort: o.effort,
     signal: o.signal,
     onProgress: o.onProgress,
     fetchImpl: o.fetchImpl,
@@ -85,6 +90,7 @@ async function repairPass(
     repaired: true,
     usage: first ? addUsage(first.usage, second.usage) : second.usage,
     model: o.model,
+    effort: o.effort ?? null,
     attempts: first ? [first.input, second.input] : [previousInput, second.input],
   };
 }
@@ -113,7 +119,7 @@ export async function generateBlueprint(o: FlowOptions): Promise<FlowResult> {
   const ev = evaluate(first.input, o.inputs);
 
   if (ev.ok && !hasErrors(ev.issues))
-    return { blueprint: ev.blueprint, issues: ev.issues, repaired: false, usage: first.usage, model: o.model, attempts: [first.input] };
+    return { blueprint: ev.blueprint, issues: ev.issues, repaired: false, usage: first.usage, model: o.model, effort: o.effort ?? null, attempts: [first.input] };
 
   const problems = ev.ok ? issuesToText(ev.issues) : ev.problems.map((p) => `- ${p}`).join('\n');
   return repairPass(o, userMessage, first.input, problems, first);
@@ -132,7 +138,7 @@ export function makeRunRecord(projectId: string, r: FlowResult, kind: RunRecord[
     projectId,
     kind,
     createdAt: Date.now(),
-    payload: { model: r.model, repaired: r.repaired, attempts: r.attempts, issues: r.issues },
+    payload: { model: r.model, effort: r.effort, repaired: r.repaired, attempts: r.attempts, issues: r.issues },
     usage: r.usage,
   };
 }

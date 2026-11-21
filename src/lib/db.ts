@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase, type IDBPTransaction } from 'idb';
 import type { BlueprintAnchor, Scene } from '../types/blueprint';
-import { newProject, type Project, type RunRecord, type StoredAnchor, type StoredScene } from '../types/project';
+import { newProject, type ImageOwner, type ImageRecord, type Project, type RunRecord, type StoredAnchor, type StoredScene } from '../types/project';
 
 // Namespaced so it can't collide with other apps on the same github.io origin.
 const DB_NAME = 'gp-producer';
@@ -63,10 +63,7 @@ export async function deleteProject(id: string): Promise<void> {
   await tx.done;
 }
 
-/**
- * Copies the project, its anchors and its scenes under a new id.
- * Images are not copied yet: nothing references them until M2, which must copy them and remap their ids here.
- */
+/** Copies the project, its anchors, scenes and images under a new id. */
 export async function duplicateProject(id: string): Promise<Project | undefined> {
   const src = await getProject(id);
   if (!src) return undefined;
@@ -74,10 +71,13 @@ export async function duplicateProject(id: string): Promise<Project | undefined>
   const copy: Project = { ...structuredClone(src), id: crypto.randomUUID(), name: `${src.name} (copy)`, createdAt: now, updatedAt: now };
   const d = await db();
   const [anchors, scenes] = await Promise.all([getAnchors(id), getScenes(id)]);
-  const tx = d.transaction(['projects', 'anchors', 'scenes'], 'readwrite');
+  const images = await listProjectImages(id);
+  const tx = d.transaction(['projects', 'anchors', 'scenes', 'images'], 'readwrite');
   tx.objectStore('projects').put(copy);
   for (const a of anchors) tx.objectStore('anchors').put({ ...a, projectId: copy.id });
   for (const s of scenes) tx.objectStore('scenes').put({ ...s, projectId: copy.id });
+  // Images are keyed by owner (anchor id / scene number), so a copy needs only new ids.
+  for (const im of images) tx.objectStore('images').put({ ...im, id: crypto.randomUUID(), projectId: copy.id });
   await tx.done;
   return copy;
 }
@@ -132,4 +132,57 @@ export async function addRun(run: RunRecord): Promise<void> {
 export async function listRuns(projectId: string): Promise<RunRecord[]> {
   const rows = (await (await db()).getAllFromIndex('runs', 'projectId', projectId)) as RunRecord[];
   return rows.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+// ---- images -------------------------------------------------------------------------------------------------
+
+export async function putImage(rec: ImageRecord): Promise<void> {
+  await (await db()).put('images', rec);
+}
+
+export async function getImage(id: string): Promise<ImageRecord | undefined> {
+  return (await db()).get('images', id);
+}
+
+export async function listProjectImages(projectId: string): Promise<ImageRecord[]> {
+  return (await (await db()).getAllFromIndex('images', 'projectId', projectId)) as ImageRecord[];
+}
+
+/** Every image for one owner, newest first. The newest is the one in use. */
+export async function listImages(projectId: string, owner: ImageOwner): Promise<ImageRecord[]> {
+  const rows = (await (await db()).getAllFromIndex('images', 'ownerKey', owner)) as ImageRecord[];
+  return rows.filter((r) => r.projectId === projectId).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/** The newest image per owner, for loading a whole gallery in one read. */
+export async function latestImages(projectId: string): Promise<Map<ImageOwner, ImageRecord>> {
+  const out = new Map<ImageOwner, ImageRecord>();
+  for (const r of await listProjectImages(projectId)) {
+    const cur = out.get(r.ownerKey);
+    if (!cur || r.createdAt > cur.createdAt) out.set(r.ownerKey, r);
+  }
+  return out;
+}
+
+export async function deleteImage(id: string): Promise<void> {
+  await (await db()).delete('images', id);
+}
+
+/** Deletes all of an owner's images (for example when a scene's keyframe no longer matches a new blueprint). */
+export async function deleteOwnerImages(projectId: string, owner: ImageOwner): Promise<void> {
+  const d = await db();
+  // Read first: awaiting a separate read while a transaction is open lets it auto-commit before the deletes.
+  const rows = await listImages(projectId, owner);
+  const tx = d.transaction('images', 'readwrite');
+  for (const r of rows) tx.store.delete(r.id);
+  await tx.done;
+}
+
+/** Keeps only the newest `keep` images for an owner, so regenerating can be undone without unbounded growth. */
+export async function pruneImages(projectId: string, owner: ImageOwner, keep = 3): Promise<void> {
+  const d = await db();
+  const rows = await listImages(projectId, owner);
+  const tx = d.transaction('images', 'readwrite');
+  for (const r of rows.slice(keep)) tx.store.delete(r.id);
+  await tx.done;
 }

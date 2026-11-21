@@ -512,10 +512,11 @@ Vite + React + TS + Tailwind, HashRouter shell with the four tabs, the Pages wor
 - Validator tests: gaps, overlaps, bad end, mismatched duration, unknown anchor, untileable runtime (under 10 s), lyric at edge, and the split rules: 10+2 and 11+2 rejected, 10+3, 15+4 and base-only 10–15 accepted, 16–19 only with a legal split, 20 s rejected.
 *Done when:* a real `.lrc` produces a validated ledger that survives reload.
 
-**M2: Visual engine (Nano Banana)**
-- Gemini client, three model roles with per-card model menu and Draft toggle, "Test & list models", job queue, retry and error states.
-- Anchor Generate/Regenerate, custom upload, image history.
-- Scene keyframes using attached anchors as labelled references, with the 3-anchor cap and downscale, plus lightbox, anchor chips, "Generate all missing".
+**M2: Visual engine (Nano Banana)**, in four stop-points (each ends with your go-ahead):
+- **M2.1: Gemini client and key check.** `generateImage` / `listModels`, retry and error mapping, the image-only to text+image fallback, reference-image prep (downscale, base64) and the request-size guard, image storage in IndexedDB (keyed by owner: `anchor:<id>`, `scene:<n>`, newest wins, last 3 kept), and a Settings panel with "Test key & list models", per-role Test buttons and one-click role assignment. *Built from memory of the REST API because the docs host is unreachable from the build sandbox, so the live Test buttons are the real verification.*
+- **M2.2: Anchor images.** Generate / Regenerate per anchor card with a model menu (Workhorse / Hero / Draft), upload your own, image history, "Upgrade to Hero".
+- **M2.3: Scene keyframes.** Generated from the scene's keyframe prompt with its attached anchors as labelled references (capped per Settings), lightbox, "Generate all missing" queue (concurrency 2). A new blueprint clears scene images (scene numbers no longer match) but keeps anchor images.
+- **M2.4: Polish.** Draft-mode toggle, cancel, error and blocked states on cards, 16:9 check on results.
 *Done when:* every anchor and scene card shows its image and keyframes visibly track the anchors.
 
 **M3: Production Deck (Execution Mode)**

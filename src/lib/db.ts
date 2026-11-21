@@ -186,3 +186,12 @@ export async function pruneImages(projectId: string, owner: ImageOwner, keep = 3
   for (const r of rows.slice(keep)) tx.store.delete(r.id);
   await tx.done;
 }
+
+/** Makes an older version the one in use again, by giving it the newest timestamp. */
+export async function promoteImage(id: string): Promise<void> {
+  const d = await db();
+  const rec = (await d.get('images', id)) as ImageRecord | undefined;
+  if (!rec) return;
+  const [newest] = await listImages(rec.projectId, rec.ownerKey);
+  await d.put('images', { ...rec, createdAt: Math.max(Date.now(), (newest?.createdAt ?? 0) + 1) });
+}

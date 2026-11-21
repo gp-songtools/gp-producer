@@ -37,7 +37,7 @@ export default function BlueprintPage() {
   const hasReview = scenes.some((s) => s.needs_review);
 
   const generate = () => {
-    if (hasBlueprint && !window.confirm('Replace the current blueprint with a new one? Edits to prompts and any generated images will be lost.')) return;
+    if (hasBlueprint && !window.confirm('Replace the current blueprint with a new one? Prompt changes are lost. Anchor images are kept where the anchor id matches.')) return;
     void run.generate();
   };
 
@@ -91,7 +91,7 @@ export default function BlueprintPage() {
         <>
           <ValidationBanner errors={errors} warnings={warnings} sceneCount={scenes.length} />
           <TreatmentPanel treatment={project.treatment!} />
-          <AnchorGallery anchors={anchors} />
+          <AnchorGallery anchors={anchors} projectId={project.id} />
           <section aria-label="Scene ledger" className="space-y-3">
             <h2 className="text-base font-semibold">Storyboard & scene ledger</h2>
             <SceneTimeline scenes={scenes} runtimeSec={T} byScene={byScene} />

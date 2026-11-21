@@ -1,6 +1,8 @@
 # AI Music Video Director & Storyboard Studio: Build Plan
 
-Status: **DRAFT, awaiting approval. No application code or Vite scaffold exists yet.**
+Status: **REVISION 2, awaiting final approval. No application code or Vite scaffold exists yet.**
+
+**Changes in revision 2:** (a) Scene length rules replaced: base clip 10–15 s, optional extension 3–4 s, enforced as separate fields (§2.2a). (b) Three Gemini model roles: workhorse, hero and draft (§3.2). (c) Key-exposure risk and file-tag format accepted (§0).
 
 A client-side, BYOK web app on GitHub Pages that turns the `/music-video-director` skill (`SKILL.md` and `references/gemini-audio-brief.md` in this repo) into a visual workspace. Claude acts as Co-Director. Gemini (Nano Banana) renders the 16:9 anchors and storyboard frames.
 
@@ -10,13 +12,13 @@ A client-side, BYOK web app on GitHub Pages that turns the `/music-video-directo
 
 | # | Item | Proposal |
 |---|------|----------|
-| 1 | **Gemini model IDs** | `gemini-nano-banana-2.1` and `gemini-3-pro-image` are not IDs I can verify. IDs shipped so far look like `gemini-2.5-flash-image` and `gemini-3-pro-image-preview`. Plan: ship your two names as defaults, but make the selector a **combo box** (presets plus free-text custom ID). Settings gets a **"Test & list models"** button that calls `GET /v1beta/models`, filters to `generateContent` models with "image" in the name, and fills the dropdown. If the default 404s, you pick the real ID once. |
+| 1 | **Gemini model roles** | Three presets, each editable as free text: **`gemini-nano-banana-2.1`** (default workhorse for anchors and keyframes), **`gemini-3-pro-image`** (hero anchors and strict continuity), **`gemini-3.1-flash-lite-image`** (quick, cheap drafts). I can't verify these IDs from here, so Settings gets a **"Test & list models"** button that calls `GET /v1beta/models` and flags any preset the API doesn't recognize. A wrong ID is a one-field fix, not a code change. |
 | 2 | **Claude model** | Default `claude-sonnet-5-5` (the current Sonnet), free-text overridable, with a Settings dropdown (Fable 5.2, Opus 5.5, Sonnet 5.5, Haiku 5.5). |
-| 3 | **Shared-origin key exposure** | Project Pages sites live at `<user>.github.io/<repo>/`. `localStorage` and IndexedDB are scoped to the **origin**, so every other Pages site under `<user>.github.io` can read your keys. Mitigations: a custom domain for this repo (best), or only host trusted code on that user origin. The Settings modal shows a one-time warning, and a "Forget keys" button clears them. |
-| 4 | **File tag format** | Your example is `01_Intro_00-15.mp4`. Proposed generation: `{NN}_{SectionSlug}_{startSec}-{endSec}.mp4` with whole seconds zero-padded to 2+ digits. So `03_Verse1A_26-39.mp4`. It is built **client-side** from locked fields, so Claude can never change it. Say so if you want `mm-ss` instead. |
+| 3 | **Shared-origin key exposure** | **Accepted.** Keys stay in `localStorage`. The Settings modal still shows a one-time notice and a "Forget keys" button. |
+| 4 | **File tag format** | **Confirmed:** `{NN}_{SectionSlug}_{startSec}-{endSec}.mp4`, whole seconds, built client-side from locked fields (e.g. `03_Verse1A_26-39.mp4`). |
 | 5 | **Images stored as Blobs, not base64** | IndexedDB stores `Blob`s (about 33% smaller, no huge strings in memory). Base64 exists only at the API boundary and in exports. |
 | 6 | **Routing** | HashRouter. GitHub Pages has no SPA fallback, so deep links on BrowserRouter would 404. |
-| 7 | **Impossible runtimes** | With 10–14 s scenes, some runtimes cannot be tiled (for example 15–19 s). The validator checks feasibility before calling Claude. Everything from 50 s up is always feasible. |
+| 7 | **Scene length rules** | Base clip **10–15 s**; optional extension **3–4 s**; a 2 s extension (or 10 s + 2 s) is **invalid**. Total scene length is therefore 10–15 s (no extension) or 13–19 s (with one). Every integer from 10 to 19 is reachable, so any runtime of 10 s or more can be tiled. Rules live in one config object (§2.2a) so they can change without touching validator logic. **Assumption to confirm:** one extension per scene, and the whole 10–19 s range is allowed. |
 | 8 | **Reference-image limits** | Gemini image models degrade with many references (roughly 3 for the Flash image model, more for Pro). Default cap: **3 anchors per scene** (configurable). Anchors are downscaled to a 1536 px long edge before sending to stay under inline request-size limits. |
 
 ---
@@ -163,19 +165,21 @@ gp-producer/
       "type": "array", "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["scene", "section", "start_sec", "end_sec", "duration_sec",
+        "required": ["scene", "section", "start_sec", "end_sec", "base_sec", "extension_sec", "duration_sec",
                      "anchor_ids", "keyframe_prompt", "base_prompt", "extension_prompt", "lip_sync"],
         "properties": {
           "scene":        { "type": "integer", "minimum": 1 },
           "section":      { "type": "string", "description": "e.g. 'Verse 1A'; used in the display title and file tag" },
           "start_sec":    { "type": "integer", "minimum": 0 },
           "end_sec":      { "type": "integer", "minimum": 1 },
-          "duration_sec": { "type": "integer", "minimum": 10, "maximum": 14 },
+          "base_sec":      { "type": "integer", "minimum": 10, "maximum": 15, "description": "Length of the Google Flow base clip" },
+          "extension_sec": { "type": ["integer", "null"], "enum": [3, 4, null], "description": "Length of the extension, or null for none. Never 1 or 2." },
+          "duration_sec":  { "type": "integer", "minimum": 10, "maximum": 19, "description": "Must equal base_sec + (extension_sec ?? 0) and end_sec - start_sec" },
           "anchor_ids":   { "type": "array", "minItems": 1, "items": { "type": "string" },
                             "description": "Must reference anchors[].id" },
           "keyframe_prompt": { "type": "string", "description": "Single representative still frame for Nano Banana" },
-          "base_prompt":     { "type": "string", "description": "Google Flow text-to-video prompt, 10s" },
-          "extension_prompt":{ "type": ["string", "null"], "description": "Required when duration_sec > 10, otherwise null" },
+          "base_prompt":     { "type": "string", "description": "Google Flow text-to-video prompt for a base_sec-long clip" },
+          "extension_prompt":{ "type": ["string", "null"], "description": "Required when extension_sec is set, otherwise null. Describes only the extension_sec seconds that continue the base clip." },
           "lip_sync": {
             "oneOf": [
               { "type": "null" },
@@ -199,7 +203,27 @@ gp-producer/
 
 The same shape lives in `schemas/blueprint.zod.ts`. It is validated again client-side, and zod emits the `input_schema`, so there is one definition.
 
-**Revision schema (`submit_revision`):** `{ "base_prompt": string, "extension_prompt": string|null, "keyframe_prompt"?: string, "change_notes": string }`. It has no time or tag fields, so locking is structural rather than a request to the model.
+**Revision schema (`submit_revision`):** `{ "base_prompt": string, "extension_prompt": string|null, "keyframe_prompt"?: string, "change_notes": string }`. It has no time, split (`base_sec`/`extension_sec`) or tag fields, so locking is structural rather than a request to the model.
+
+### 2.2a Scene length rules (single config)
+
+```ts
+export const SCENE_RULES = {
+  baseMin: 10, baseMax: 15,        // Google Flow base clip, seconds
+  extMin: 3,  extMax: 4,           // one optional extension, seconds
+} as const;
+// Total scene length D: 10..15 (no extension) or 13..19 (base + extension).
+```
+
+| Scene length D | Valid splits (base + ext) | Preferred |
+|---|---|---|
+| 10–15 | base = D, no extension | base = D |
+| 16 | 13+3, 12+4 | 13+3 |
+| 17 | 14+3, 13+4 | 14+3 |
+| 18 | 15+3, 14+4 | 15+3 |
+| 19 | 15+4 | 15+4 |
+
+**Always invalid:** 10+1, 10+2, 11+2, any extension under 3 s or over 4 s, any base under 10 s or over 15 s, any scene over 19 s. The system prompt includes this table and the explicit counter-example "10 s base + 2 s extension is not possible". Claude should use an extension only when the scene needs more than 15 s, with 10–15 s base-only scenes as the default, and must state `base_sec` and `extension_sec` itself, so the validator can check the split rather than infer it.
 
 ### 2.3 Client-side validation (`lib/ledger/validate.ts`)
 
@@ -211,11 +235,21 @@ export type Issue = {
   message: string;
 };
 
-/** Scene counts n for which 10n <= T <= 14n. Empty array => runtime can't be tiled. */
+const MIN_D = SCENE_RULES.baseMin;                       // 10
+const MAX_D = SCENE_RULES.baseMax + SCENE_RULES.extMax;  // 19
+
+/** Scene counts n for which MIN_D*n <= T <= MAX_D*n. Empty array => runtime can't be tiled (only T < 10). */
 export function feasibleSceneCounts(T: number): number[] {
   const out: number[] = [];
-  for (let n = Math.ceil(T / 14); n <= Math.floor(T / 10); n++) out.push(n);
+  for (let n = Math.ceil(T / MAX_D); n <= Math.floor(T / MIN_D); n++) out.push(n);
   return out;
+}
+
+/** Valid iff base in [10,15] and (ext is null or ext in [3,4]). */
+export function validSplit(base: number, ext: number | null): boolean {
+  const { baseMin, baseMax, extMin, extMax } = SCENE_RULES;
+  return Number.isInteger(base) && base >= baseMin && base <= baseMax &&
+    (ext === null || (Number.isInteger(ext) && ext >= extMin && ext <= extMax));
 }
 
 export function validateLedger(
@@ -228,7 +262,7 @@ export function validateLedger(
     issues.push({ severity: 'warn', code, message, scene });
 
   if (feasibleSceneCounts(runtimeSec).length === 0)
-    err('RUNTIME_UNTILEABLE', `${runtimeSec}s cannot be split into 10–14s scenes.`);
+    err('RUNTIME_UNTILEABLE', `${runtimeSec}s cannot be split into 10–19s scenes.`);
   if (scenes.length === 0) { err('NO_SCENES', 'Ledger is empty.'); return issues; }
 
   const sorted = [...scenes].sort((a, b) => a.scene - b.scene);
@@ -236,14 +270,16 @@ export function validateLedger(
   sorted.forEach((s, i) => {
     const n = s.scene;
     if (s.scene !== i + 1) err('SCENE_NUMBER', `Expected scene ${i + 1}, found ${s.scene}.`, n);
-    if (![s.start_sec, s.end_sec, s.duration_sec].every(Number.isInteger))
+    if (![s.start_sec, s.end_sec, s.duration_sec, s.base_sec].every(Number.isInteger))
       err('NON_INTEGER', 'Timestamps must be whole seconds.', n);
 
     const actual = s.end_sec - s.start_sec;
     if (actual !== s.duration_sec)
       err('DURATION_MISMATCH', `Stated ${s.duration_sec}s but ${fmt(s.start_sec)}–${fmt(s.end_sec)} is ${actual}s.`, n);
-    if (actual < 10 || actual > 14)
-      err('DURATION_RANGE', `Scene is ${actual}s; must be 10–14s.`, n);
+    if (!validSplit(s.base_sec, s.extension_sec))
+      err('BAD_SPLIT', `Base ${s.base_sec}s + extension ${s.extension_sec ?? 0}s is not allowed (base 10–15s; extension none, 3s or 4s).`, n);
+    if (s.base_sec + (s.extension_sec ?? 0) !== actual)
+      err('SPLIT_MISMATCH', `${s.base_sec}s base + ${s.extension_sec ?? 0}s extension ≠ ${actual}s scene.`, n);
 
     if (i === 0 && s.start_sec !== 0)
       err('START_NOT_ZERO', `First scene starts at ${fmt(s.start_sec)}, not 00:00.`, n);
@@ -253,8 +289,8 @@ export function validateLedger(
       if (s.start_sec < prevEnd) err('OVERLAP', `Overlaps previous scene by ${prevEnd - s.start_sec}s.`, n);
     }
 
-    if (s.duration_sec > 10 && !s.extension_prompt) err('MISSING_EXTENSION', 'Over 10s requires an extension prompt.', n);
-    if (s.duration_sec <= 10 && s.extension_prompt) warn('EXTRA_EXTENSION', 'Extension prompt present on a ≤10s scene.', n);
+    if (s.extension_sec !== null && !s.extension_prompt) err('MISSING_EXTENSION', `A ${s.extension_sec}s extension needs an extension prompt.`, n);
+    if (s.extension_sec === null && s.extension_prompt) err('ORPHAN_EXTENSION', 'Extension prompt present but extension_sec is null.', n);
 
     if (s.anchor_ids.length === 0) err('NO_ANCHORS', 'No reference anchors attached.', n);
     s.anchor_ids.filter(id => !anchorIds.has(id))
@@ -288,7 +324,7 @@ export function validateLedger(
 }
 ```
 
-**Deterministic repair (`normalize.ts`):** if the only errors are `GAP`, `OVERLAP`, `START_NOT_ZERO` or `END_MISMATCH`, offer a "Snap boundaries" button. It sets each `start = previous end`, forces the first start to 0 and the last end to the runtime, and recomputes durations. It applies the result only if every duration then lands in 10–14 s. Otherwise it shows the one-click **"Ask Claude to fix"** option below.
+**Deterministic repair (`normalize.ts`):** if the only errors are `GAP`, `OVERLAP`, `START_NOT_ZERO` or `END_MISMATCH`, offer a "Snap boundaries" button. It sets each `start = previous end`, forces the first start to 0 and the last end to the runtime, and recomputes durations. It re-derives each split using the preferred column in §2.2a, and applies the result only if every duration then lands in 10–19 s. Any scene whose split changed (extension added, removed or resized) is flagged "prompts need review", because its extension prompt no longer matches. Otherwise it shows the one-click **"Ask Claude to fix"** option below.
 
 **Auto-repair loop:** after the Claude call, if `validateLedger` returns errors, make **one** follow-up call that includes the failing issue list and the prior tool result, asking for a corrected `submit_blueprint`. If errors remain, show them in the banner and let you edit or re-ask. Nothing is silently accepted.
 
@@ -313,7 +349,7 @@ content-type: application/json
   "model": "claude-sonnet-5-5",
   "max_tokens": 16000,
   "stream": true,
-  "system": "<SKILL.md rules: co-director role; no claim of having heard the audio; 10–14s scenes; zero gaps/overlaps; standalone 16:9 anchor prompts; LIP-SYNC framing rules; use Gemini audio brief per 'Using the answer'>",
+  "system": "<SKILL.md rules: co-director role; no claim of having heard the audio; scene-length rules in §2.2a with the 10+2 counter-example; zero gaps/overlaps; standalone 16:9 anchor prompts; LIP-SYNC framing rules; use Gemini audio brief per 'Using the answer'>",
   "tools": [{
     "name": "submit_blueprint",
     "description": "Submit the Director's Treatment, Reference Anchors and Scene Ledger.",
@@ -322,7 +358,7 @@ content-type: application/json
   "tool_choice": { "type": "tool", "name": "submit_blueprint" },
   "messages": [{
     "role": "user",
-    "content": "<project_inputs>\n{\n \"runtime_sec\": 214,\n \"allowed_scene_counts\": [16,17,18,19,20,21],\n \"lrc\": [{\"t\": 26.4, \"text\": \"...\"}, ...],\n \"section_guide\": \"...\",\n \"vision\": {\"narrative_arc\": \"...\", \"visual_tone\": \"...\", \"mood\": \"...\", \"palette\": \"...\", \"aesthetic\": \"35mm anamorphic, ...\"},\n \"gemini_audio_brief\": \"...or null\"\n}\n</project_inputs>"
+    "content": "<project_inputs>\n{\n \"runtime_sec\": 214,\n \"scene_rules\": {\"base_sec\": [10,15], \"extension_sec\": [3,4], \"invalid_example\": \"10s base + 2s extension\"}, \"allowed_scene_counts\": [12,13,14,15,16,17,18,19,20,21],\n \"lrc\": [{\"t\": 26.4, \"text\": \"...\"}, ...],\n \"section_guide\": \"...\",\n \"vision\": {\"narrative_arc\": \"...\", \"visual_tone\": \"...\", \"mood\": \"...\", \"palette\": \"...\", \"aesthetic\": \"35mm anamorphic, ...\"},\n \"gemini_audio_brief\": \"...or null\"\n}\n</project_inputs>"
   }]
 }
 ```
@@ -373,7 +409,15 @@ content-type: application/json
 }
 ```
 
-For the Pro model, `imageConfig.imageSize` (`"1K"` / `"2K"`) is exposed as an optional setting.
+**Model roles** (Settings → Models; each field is free text with the preset as default):
+
+| Role | Default ID | Used for |
+|---|---|---|
+| Workhorse | `gemini-nano-banana-2.1` | Default for anchors and scene keyframes |
+| Hero / continuity | `gemini-3-pro-image` | Hero anchors (character, key environments) and any scene needing strict character continuity |
+| Draft | `gemini-3.1-flash-lite-image` | Quick, cheap exploration |
+
+Each Generate button has a small model menu (Workhorse / Hero / Draft) that defaults to Workhorse. The toolbar also has a **Draft mode** toggle that makes every generation use the Draft model, and "Upgrade to Hero" re-renders the selected card with the Hero model, keeping the draft in history. The model ID used is stored with every image. For models that support it, `imageConfig.imageSize` (`"1K"` / `"2K"`) is an optional setting, and the reference-anchor cap is a per-model setting (default 3).
 
 **Response:**
 
@@ -404,9 +448,9 @@ Database `gp-producer` (namespaced to avoid collisions on the shared `github.io`
 
 | Store | Key | Indexes | Contents |
 |-------|-----|---------|----------|
-| `projects` | `id` (uuid) | `updatedAt` | `{ id, name, createdAt, updatedAt, runtimeSec, lrcRaw, lrcLines[], audioFileName?, vision{narrativeArc, visualTone, mood, palette, aesthetic}, audioBrief, treatment?, imageModel, keyframeModel, blueprintRunId?, progress{ setup, blueprint, productionIndex } }` |
+| `projects` | `id` (uuid) | `updatedAt` | `{ id, name, createdAt, updatedAt, runtimeSec, lrcRaw, lrcLines[], audioFileName?, vision{narrativeArc, visualTone, mood, palette, aesthetic}, audioBrief, treatment?, models{workhorse, hero, draft}, blueprintRunId?, progress{ setup, blueprint, productionIndex } }` |
 | `anchors` | `[projectId, anchorId]` | `projectId` | `{ projectId, anchorId, name, category, prompt, activeImageId?, source: 'generated'|'uploaded'|null, order }` |
-| `scenes` | `[projectId, scene]` | `projectId` | `{ projectId, scene, section, startSec, endSec, durationSec, anchorIds[], keyframePrompt, basePrompt, extensionPrompt, lipSync?, activeKeyframeId?, checklist{ anchorsAttached, baseGenerated, extensionGenerated, downloaded, tagged }, status, revisions[{at, request, old{basePrompt, extensionPrompt, keyframePrompt}, notes}] }` |
+| `scenes` | `[projectId, scene]` | `projectId` | `{ projectId, scene, section, startSec, endSec, baseSec, extensionSec, durationSec, anchorIds[], keyframePrompt, basePrompt, extensionPrompt, lipSync?, activeKeyframeId?, checklist{ anchorsAttached, baseGenerated, extensionGenerated, downloaded, tagged }, status, revisions[{at, request, old{basePrompt, extensionPrompt, keyframePrompt}, notes}] }` |
 | `images` | `id` (uuid) | `projectId`, `ownerKey` (`anchor:<id>` or `scene:<n>`) | `{ id, projectId, ownerKey, kind: 'anchor'|'keyframe', blob, mime, width, height, model, prompt, source, createdAt }`. Keeps the last 3 generations per owner so regenerate is undoable. |
 | `runs` | `id` | `projectId` | Raw Claude blueprint and revision payloads plus `usage`, for undo, debugging and re-validation. |
 | `meta` | `key` | | `{ key: 'schemaVersion', value: 1 }` |
@@ -461,11 +505,11 @@ Vite + React + TS + Tailwind, HashRouter shell with the four tabs, the Pages wor
 - IndexedDB layer and project switcher (create, rename, delete, duplicate).
 - `submit_blueprint` streaming call, zod validation, one auto-repair pass.
 - Blueprint tab: treatment panel, anchor cards (prompt + copy only), scene cards (text only), validation banner, timeline bar, "Snap boundaries".
-- Validator tests: gaps, overlaps, bad end, duration range, mismatched duration, unknown anchor, untileable runtime, lyric at edge.
+- Validator tests: gaps, overlaps, bad end, mismatched duration, unknown anchor, untileable runtime (under 10 s), lyric at edge, and the split rules: 10+2 and 11+2 rejected, 10+3, 15+4 and base-only 10–15 accepted, 16–19 only with a legal split, 20 s rejected.
 *Done when:* a real `.lrc` produces a validated ledger that survives reload.
 
 **M2: Visual engine (Nano Banana)**
-- Gemini client, model selector with "Test & list models", job queue, retry and error states.
+- Gemini client, three model roles with per-card model menu and Draft toggle, "Test & list models", job queue, retry and error states.
 - Anchor Generate/Regenerate, custom upload, image history.
 - Scene keyframes using attached anchors as labelled references, with the 3-anchor cap and downscale, plus lightbox, anchor chips, "Generate all missing".
 *Done when:* every anchor and scene card shows its image and keyframes visibly track the anchors.
@@ -495,8 +539,8 @@ Audio upload to any API, automatic beat detection, Google Flow automation (the a
 
 ## 9. Needs your approval
 
-1. Treat `gemini-nano-banana-2.1` and `gemini-3-pro-image` as editable defaults with the model-listing button (§0.1)?
-2. File tag format `NN_Section_start-end.mp4` in whole seconds (§0.4)?
-3. Integer-second schema with client-derived lyrics and tags (§2.1)?
-4. Custom domain, or accept the shared-origin key exposure on `github.io` (§0.3)?
-5. Anything to add or cut before M0?
+Resolved: model roles, key-exposure risk and file-tag format.
+
+1. Is the scene rule I inferred right: base clip 10–15 s, then at most one 3–4 s extension, for scenes of 10–19 s in total? If you want a lower ceiling (say 10–15 s total, or a cap of 17 s), it's a one-line config change.
+2. Should the repo's own `SKILL.md` also be corrected to these rules (it still says 10–14 s scenes with a 10 s base)? I haven't touched it.
+3. Anything else to add or cut before M0?

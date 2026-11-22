@@ -2,10 +2,10 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AppShell from './components/layout/AppShell';
 import ProjectListPage from './pages/ProjectListPage';
 import ProjectLayout from './pages/ProjectLayout';
-import Placeholder from './pages/Placeholder';
 import SetupPage from './pages/SetupPage';
 import BlueprintPage from './pages/BlueprintPage';
 import ProductionPage from './pages/ProductionPage';
+import PostPage from './pages/PostPage';
 
 export default function App() {
   return (
@@ -17,7 +17,7 @@ export default function App() {
           <Route path="setup" element={<SetupPage />} />
           <Route path="blueprint" element={<BlueprintPage />} />
           <Route path="production/:sceneNo?" element={<ProductionPage />} />
-          <Route path="post" element={<Placeholder title="Post-Production & Lip-Sync" note="Phase 3: handoff sheet and export bundle." />} />
+          <Route path="post" element={<PostPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

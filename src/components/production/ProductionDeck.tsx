@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { buildFileTag } from '../../lib/ledger/fileTag';
 import { fmt, fmtPrecise } from '../../lib/ledger/format';
@@ -12,6 +12,7 @@ import CopyButton from '../ui/CopyButton';
 import CompletionChecklist from './CompletionChecklist';
 import AnchorDownloads from './AnchorDownloads';
 import PromptPanel from './PromptPanel';
+import ReviseDrawer from './ReviseDrawer';
 import SceneStepper from './SceneStepper';
 
 const badge = 'rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide';
@@ -24,10 +25,11 @@ export default function ProductionDeck({ scene: s, scenes, anchors, lrc, project
   const tag = buildFileTag(s);
   const target = extensionTarget(s);
   const { prev, next } = neighbours(scenes, s.scene);
+  const [revising, setRevising] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!isDeckKey(e)) return;
+      if (revising || !isDeckKey(e)) return;
       const to = e.key === 'ArrowLeft' ? prev : next;
       if (to !== null) {
         e.preventDefault();
@@ -36,7 +38,7 @@ export default function ProductionDeck({ scene: s, scenes, anchors, lrc, project
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [prev, next, navigate, projectId]);
+  }, [prev, next, navigate, projectId, revising]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
@@ -52,9 +54,15 @@ export default function ProductionDeck({ scene: s, scenes, anchors, lrc, project
         <div className="flex flex-wrap items-center gap-1.5">
           {s.extension_sec && <span className={`${badge} bg-amber-500/20 text-amber-300`}>Extended</span>}
           {s.lip_sync && <span className={`${badge} bg-sky-500/20 text-sky-300`}>LIP-SYNC</span>}
+          {s.revisions?.length ? <span className={`${badge} bg-violet-500/20 text-violet-300`}>Revised ×{s.revisions.length}</span> : null}
           {s.needs_review && <span className={`${badge} bg-red-500/20 text-red-300`}>Needs review</span>}
         </div>
       </header>
+
+      <div className="no-print">
+        <button type="button" onClick={() => setRevising(true)} className="rounded border border-violet-500/60 px-3 py-1.5 text-sm text-violet-200 hover:bg-violet-500/10">Revise scene with Claude</button>
+      </div>
+      {revising && <ReviseDrawer scene={s} anchors={anchors} projectId={projectId} onClose={() => setRevising(false)} />}
 
       <SceneFrame scene={s} anchors={anchors} allScenes={scenes} projectId={projectId} />
 

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import * as db from '../lib/db';
 import { parseLrc } from '../lib/lrc';
+import { applyRevision, undoLatestRevision } from '../lib/revision';
+import type { RevisionProposal } from '../schemas/revision';
 import type { BlueprintAnchor, ChecklistKey, Scene, Treatment } from '../types/blueprint';
 import type { Project, RunRecord, StoredAnchor, StoredScene } from '../types/project';
 
@@ -25,6 +27,10 @@ interface ProjectState {
   setChecklist: (sceneNo: number, key: ChecklistKey, value: boolean) => Promise<void>;
   /** Clears every checklist item on a scene. */
   resetChecklist: (sceneNo: number) => Promise<void>;
+  /** Applies an accepted revision (prompt fields only) and keeps the replaced prompts in `revisions[]`. Returns the updated scene. */
+  acceptRevision: (sceneNo: number, proposal: RevisionProposal, request: string) => Promise<Scene | null>;
+  /** Reverts the scene's latest revision. */
+  undoRevision: (sceneNo: number) => Promise<Scene | null>;
   /** Writes any pending project changes now. */
   flush: () => Promise<void>;
   unload: () => Promise<void>;
@@ -110,6 +116,26 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       void _drop;
       set({ scenes: get().scenes.map((s) => (s.scene === sceneNo ? next : s)) });
       await db.putScene(p.id, next);
+    },
+
+    acceptRevision: async (sceneNo, proposal, request) => {
+      const p = get().project;
+      const cur = get().scenes.find((s) => s.scene === sceneNo);
+      if (!p || !cur) return null;
+      const next = { ...applyRevision(cur, proposal, request), projectId: p.id };
+      set({ scenes: get().scenes.map((s) => (s.scene === sceneNo ? next : s)) });
+      await db.putScene(p.id, next);
+      return next;
+    },
+
+    undoRevision: async (sceneNo) => {
+      const p = get().project;
+      const cur = get().scenes.find((s) => s.scene === sceneNo);
+      if (!p || !cur?.revisions?.length) return null;
+      const next = { ...undoLatestRevision(cur), projectId: p.id };
+      set({ scenes: get().scenes.map((s) => (s.scene === sceneNo ? next : s)) });
+      await db.putScene(p.id, next);
+      return next;
     },
 
     flush: async () => {

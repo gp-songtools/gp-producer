@@ -34,12 +34,24 @@ export interface BlueprintScene {
 export type ChecklistKey = 'anchorsAttached' | 'baseGenerated' | 'extensionGenerated' | 'downloaded' | 'tagged';
 export type SceneChecklist = Partial<Record<ChecklistKey, boolean>>;
 
+/** One accepted Claude revision. `old` holds what was replaced, so it can be undone. Only prompts are ever revised. */
+export interface SceneRevision {
+  at: number;
+  /** What the user said was wrong. */
+  request: string;
+  old: { basePrompt: string; extensionPrompt: string | null; keyframePrompt: string; needsReview?: boolean };
+  /** Claude's one-line summary of what it changed. */
+  notes: string;
+}
+
 /** Scene as held by the app: blueprint fields plus client-side flags. */
 export interface Scene extends BlueprintScene {
   /** Set when a deterministic repair changed the base/extension split, so the prompts may no longer fit. */
   needs_review?: boolean;
   /** Production checklist (client-side only; never sent to Claude). */
   checklist?: SceneChecklist;
+  /** Accepted revisions, oldest first; the last one can be undone. */
+  revisions?: SceneRevision[];
 }
 
 export type Issue = {

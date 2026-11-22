@@ -135,3 +135,28 @@ describe('checklist', () => {
     expect((await db.getScenes(p.id)).some((s) => s.checklist)).toBe(false);
   });
 });
+
+describe('revisions', () => {
+  it('accepts a revision (prompts only), saves it, and undoes it', async () => {
+    const p = await db.createProject('P');
+    await db.replaceBlueprint(p.id, [{ id: 'a', name: 'A', category: 'character', prompt: 'x' }], goodLedger());
+    const st = useProjectStore.getState();
+    await st.load(p.id);
+    const before = useProjectStore.getState().scenes.find((s) => s.scene === 2)!;
+
+    const next = await st.acceptRevision(2, { base_prompt: 'NEW', extension_prompt: null, keyframe_prompt: 'NEWK', notes: 'n' }, 'why');
+    expect(next?.base_prompt).toBe('NEW');
+    const saved = (await db.getScenes(p.id)).find((s) => s.scene === 2)!;
+    expect(saved.base_prompt).toBe('NEW');
+    expect(saved.revisions).toHaveLength(1);
+    expect({ a: saved.start_sec, b: saved.end_sec, c: saved.base_sec, d: saved.section }).toEqual({ a: before.start_sec, b: before.end_sec, c: before.base_sec, d: before.section });
+    expect((await db.getScenes(p.id)).find((s) => s.scene === 1)?.base_prompt).toBe('b'); // other scenes untouched
+
+    await st.undoRevision(2);
+    const undone = (await db.getScenes(p.id)).find((s) => s.scene === 2)!;
+    expect(undone.base_prompt).toBe(before.base_prompt);
+    expect(undone.revisions).toBeUndefined();
+    expect(await st.undoRevision(2)).toBeNull();
+    expect(await st.acceptRevision(99, { base_prompt: 'x', extension_prompt: null, keyframe_prompt: 'y', notes: '' }, 'r')).toBeNull();
+  });
+});

@@ -30,10 +30,16 @@ export interface BlueprintScene {
   lip_sync: LipSync | null;
 }
 
+/** Per-scene production progress in Google Flow, ticked by hand. Missing keys mean "not done". */
+export type ChecklistKey = 'anchorsAttached' | 'baseGenerated' | 'extensionGenerated' | 'downloaded' | 'tagged';
+export type SceneChecklist = Partial<Record<ChecklistKey, boolean>>;
+
 /** Scene as held by the app: blueprint fields plus client-side flags. */
 export interface Scene extends BlueprintScene {
   /** Set when a deterministic repair changed the base/extension split, so the prompts may no longer fit. */
   needs_review?: boolean;
+  /** Production checklist (client-side only; never sent to Claude). */
+  checklist?: SceneChecklist;
 }
 
 export type Issue = {

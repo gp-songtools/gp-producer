@@ -102,3 +102,36 @@ describe('projectStore', () => {
     expect((await db.listProjectImages(p.id)).map((r) => r.ownerKey).sort()).toEqual(['anchor:character', 'scene:1', 'scene:4']);
   });
 });
+
+describe('checklist', () => {
+  it('saves a tick for one scene only, and it survives a reload and a snap-style scene rewrite', async () => {
+    const p = await db.createProject('P');
+    await db.replaceBlueprint(p.id, [{ id: 'a', name: 'A', category: 'character', prompt: 'x' }], goodLedger());
+    const st = useProjectStore.getState();
+    await st.load(p.id);
+    await st.setChecklist(2, 'baseGenerated', true);
+    await st.setChecklist(2, 'tagged', true);
+    expect(useProjectStore.getState().scenes.find((s) => s.scene === 2)?.checklist).toEqual({ baseGenerated: true, tagged: true });
+    expect(useProjectStore.getState().scenes.find((s) => s.scene === 1)?.checklist).toBeUndefined();
+
+    const saved = await db.getScenes(p.id);
+    expect(saved.find((s) => s.scene === 2)?.checklist).toEqual({ baseGenerated: true, tagged: true });
+    expect(saved).toHaveLength(4);
+
+    await st.setChecklist(2, 'tagged', false);
+    expect((await db.getScenes(p.id)).find((s) => s.scene === 2)?.checklist?.tagged).toBe(false);
+
+    await st.resetChecklist(2);
+    expect(useProjectStore.getState().scenes.find((s) => s.scene === 2)?.checklist).toBeUndefined();
+    expect((await db.getScenes(p.id)).find((s) => s.scene === 2)?.checklist).toBeUndefined();
+  });
+
+  it('ignores an unknown scene', async () => {
+    const p = await db.createProject('P');
+    await db.replaceBlueprint(p.id, [], goodLedger());
+    const st = useProjectStore.getState();
+    await st.load(p.id);
+    await st.setChecklist(99, 'tagged', true);
+    expect((await db.getScenes(p.id)).some((s) => s.checklist)).toBe(false);
+  });
+});

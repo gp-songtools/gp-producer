@@ -9,6 +9,7 @@ import type { LrcLine, Scene } from '../../types/blueprint';
 import type { StoredAnchor } from '../../types/project';
 import SceneFrame from '../blueprint/SceneFrame';
 import CopyButton from '../ui/CopyButton';
+import CompletionChecklist from './CompletionChecklist';
 import AnchorDownloads from './AnchorDownloads';
 import PromptPanel from './PromptPanel';
 import SceneStepper from './SceneStepper';
@@ -73,6 +74,8 @@ export default function ProductionDeck({ scene: s, scenes, anchors, lrc, project
           <span className="italic text-neutral-500">(instrumental)</span>
         )}
       </section>
+
+      <CompletionChecklist scene={s} />
 
       <PromptPanel id="base-prompt" title="Google Flow base prompt" note={`${s.base_sec}s clip, starts at ${fmt(s.start_sec)}`} text={s.base_prompt} />
 

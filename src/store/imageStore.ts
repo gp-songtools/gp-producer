@@ -4,11 +4,13 @@ import { generateAnchorImage, imagesForOwner, saveUploadedImage, UploadError } f
 import * as db from '../lib/db';
 import { runPool } from '../lib/pool';
 import { generateSceneFrame, pickReferences, type AnchorLite, type SceneRef } from '../lib/sceneImages';
-import type { ModelRoles } from '../lib/settings';
+import { resolveRole, type ModelRoles } from '../lib/settings';
 import { anchorOwner, sceneOwner, type ImageOwner, type ImageRecord } from '../types/project';
 import { useSettingsStore } from './settingsStore';
 
-export type Job = { status: 'running' } | { status: 'error'; message: string };
+/** `blocked`: Gemini declined or answered in text (retrying can differ). `upload`: your file was rejected. `error`: anything else. */
+export type JobErrorKind = 'blocked' | 'upload' | 'error';
+export type Job = { status: 'running' } | { status: 'error'; message: string; kind: JobErrorKind };
 
 export interface BatchState {
   total: number;
@@ -30,12 +32,16 @@ interface ImageState {
   images: ImageRecord[];
   /** By owner key. A card shows its job's spinner or error. */
   jobs: Record<string, Job>;
+  /** Images generated this session, by model id. Not saved; Google bills per image, so this is the number to watch. */
+  usage: Record<string, number>;
   /** Anchor batch and scene-frame batch are tracked separately. */
   batch: BatchState | null;
   frameBatch: BatchState | null;
   load: (projectId: string) => Promise<void>;
   generateAnchor: (projectId: string, anchor: AnchorRef, role: keyof ModelRoles) => Promise<void>;
   generateMissing: (projectId: string, anchors: AnchorRef[]) => Promise<void>;
+  /** Renders exactly these anchors (skipping any already generating), two at a time. Used to retry failures. */
+  generateAnchors: (projectId: string, anchors: AnchorRef[]) => Promise<void>;
   generateFrame: (projectId: string, scene: SceneRef, anchors: AnchorLite[], role: keyof ModelRoles) => Promise<void>;
   /** Renders frames for the given scenes (the caller picks which), two at a time, with the Workhorse model. */
   generateFrames: (projectId: string, scenes: SceneRef[], anchors: AnchorLite[]) => Promise<void>;
@@ -52,6 +58,8 @@ const errorMessage = (e: unknown): string =>
   e instanceof ApiError || e instanceof ImageBlockedError || e instanceof UploadError
     ? e.message
     : `Something went wrong: ${e instanceof Error ? e.message : String(e)}`;
+
+const errorKind = (e: unknown): JobErrorKind => (e instanceof ImageBlockedError ? 'blocked' : e instanceof UploadError ? 'upload' : 'error');
 
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === 'AbortError';
 
@@ -93,7 +101,7 @@ export const useImageStore = create<ImageState>((set, get) => {
         setJob(owner, null);
         return false;
       }
-      setJob(owner, { status: 'error', message: errorMessage(e) });
+      setJob(owner, { status: 'error', message: errorMessage(e), kind: errorKind(e) });
       throw e;
     } finally {
       outer?.removeEventListener('abort', onAbort);
@@ -101,20 +109,33 @@ export const useImageStore = create<ImageState>((set, get) => {
     }
   };
 
+  const bumpUsage = (model: string) => set((s) => ({ usage: { ...s.usage, [model]: (s.usage[model] ?? 0) + 1 } }));
+
   const anchorJob = (projectId: string, anchor: AnchorRef, role: keyof ModelRoles, outer?: AbortSignal) => {
     const { geminiKey, settings } = useSettingsStore.getState();
-    return runJob(projectId, anchorOwner(anchor.id), (signal) => generateAnchorImage({ projectId, anchor, model: settings.models[role], apiKey: geminiKey, signal }), outer);
+    const model = settings.models[resolveRole(role, settings.draftMode)];
+    return runJob(
+      projectId,
+      anchorOwner(anchor.id),
+      async (signal) => {
+        await generateAnchorImage({ projectId, anchor, model, apiKey: geminiKey, signal });
+        bumpUsage(model);
+      },
+      outer,
+    );
   };
 
   const frameJob = (projectId: string, scene: SceneRef, anchors: AnchorLite[], role: keyof ModelRoles, outer?: AbortSignal) => {
     const { geminiKey, settings } = useSettingsStore.getState();
+    const model = settings.models[resolveRole(role, settings.draftMode)];
     return runJob(
       projectId,
       sceneOwner(scene.scene),
-      (signal) => {
+      async (signal) => {
         // Chosen when the job starts, so a batch picks up anchor images made earlier in the same session.
         const { used } = pickReferences(scene, anchors, get().images, settings.maxAnchorsPerScene);
-        return generateSceneFrame({ projectId, scene, refs: used, model: settings.models[role], apiKey: geminiKey, signal });
+        await generateSceneFrame({ projectId, scene, refs: used, model, apiKey: geminiKey, signal });
+        bumpUsage(model);
       },
       outer,
     );
@@ -150,6 +171,7 @@ export const useImageStore = create<ImageState>((set, get) => {
     jobs: {},
     batch: null,
     frameBatch: null,
+    usage: {},
 
     load: async (projectId) => {
       if (get().projectId !== projectId) set({ projectId, images: [], jobs: {}, batch: null, frameBatch: null });
@@ -165,9 +187,14 @@ export const useImageStore = create<ImageState>((set, get) => {
       }
     },
 
-    generateMissing: async (projectId, anchors) => {
-      const todo = anchors.filter((a) => imagesForOwner(get().images, anchorOwner(a.id)).length === 0 && get().jobs[anchorOwner(a.id)]?.status !== 'running');
+    generateAnchors: async (projectId, anchors) => {
+      const todo = anchors.filter((a) => get().jobs[anchorOwner(a.id)]?.status !== 'running');
       await runBatch('batch', todo, (a, signal) => anchorJob(projectId, a, 'workhorse', signal));
+    },
+
+    generateMissing: async (projectId, anchors) => {
+      const missing = anchors.filter((a) => imagesForOwner(get().images, anchorOwner(a.id)).length === 0);
+      await get().generateAnchors(projectId, missing);
     },
 
     generateFrame: async (projectId, scene, anchors, role) => {
@@ -191,7 +218,7 @@ export const useImageStore = create<ImageState>((set, get) => {
         await refreshOwner(projectId, owner);
         setJob(owner, null);
       } catch (e) {
-        setJob(owner, { status: 'error', message: errorMessage(e) });
+        setJob(owner, { status: 'error', message: errorMessage(e), kind: errorKind(e) });
       }
     },
 

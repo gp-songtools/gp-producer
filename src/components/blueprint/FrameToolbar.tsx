@@ -1,4 +1,5 @@
 import { useImageStore } from '../../store/imageStore';
+import { resolveRole } from '../../lib/settings';
 import { useSettingsStore } from '../../store/settingsStore';
 import { imagesForOwner } from '../../lib/anchorImages';
 import { scenesNeedingFrames } from '../../lib/sceneImages';
@@ -13,17 +14,23 @@ export default function FrameToolbar({ scenes, anchors, projectId }: { scenes: S
   const batch = useImageStore((s) => s.frameBatch);
   const { generateFrames, cancelBatch } = useImageStore.getState();
   const geminiKey = useSettingsStore((s) => s.geminiKey);
-  const { models, maxAnchorsPerScene } = useSettingsStore((s) => s.settings);
+  const { models, maxAnchorsPerScene, draftMode } = useSettingsStore((s) => s.settings);
+  const jobs = useImageStore((s) => s.jobs);
+  const batchModel = models[resolveRole('workhorse', draftMode)];
 
   const missing = scenesNeedingFrames(scenes, anchors, images, maxAnchorsPerScene, 'missing');
   const outdated = scenesNeedingFrames(scenes, anchors, images, maxAnchorsPerScene, 'outdated');
   const withFrame = scenes.filter((s) => imagesForOwner(images, sceneOwner(s.scene)).length > 0).length;
   const anchorsWithoutImage = anchors.filter((a) => imagesForOwner(images, anchorOwner(a.id)).length === 0).length;
   const running = !!batch?.running;
+  const failed = scenes.filter((s) => {
+    const j = jobs[sceneOwner(s.scene)];
+    return j?.status === 'error' && j.kind !== 'upload';
+  });
 
   const start = (todo: typeof missing, what: string) => {
     const note = anchorsWithoutImage > 0 ? `\n\n${anchorsWithoutImage} anchor${anchorsWithoutImage === 1 ? ' has' : 's have'} no image yet, so frames will be made without ${anchorsWithoutImage === 1 ? 'it' : 'them'}. Generate the anchors first for better continuity.` : '';
-    if (!window.confirm(`${what} ${todo.length} storyboard frame${todo.length === 1 ? '' : 's'} with ${models.workhorse}? Each is a real image on your Gemini account.${note}`)) return;
+    if (!window.confirm(`${what} ${todo.length} storyboard frame${todo.length === 1 ? '' : 's'} with ${batchModel}? Each is a real image on your Gemini account.${note}`)) return;
     void generateFrames(projectId, todo, anchors);
   };
 
@@ -38,6 +45,11 @@ export default function FrameToolbar({ scenes, anchors, projectId }: { scenes: S
             <button type="button" onClick={() => start(missing, 'Generate')} disabled={!geminiKey || missing.length === 0} className={btn} title={geminiKey ? undefined : 'Add a Gemini API key in Settings'}>
               Generate missing frames ({missing.length})
             </button>
+            {failed.length > 0 && (
+              <button type="button" onClick={() => start(failed, 'Retry')} disabled={!geminiKey} className={btn}>
+                Retry failed ({failed.length})
+              </button>
+            )}
             {outdated.length > 0 && (
               <button type="button" onClick={() => start(outdated, 'Re-render')} disabled={!geminiKey} className={btn} title="Frames whose prompt or reference anchors have changed since they were made">
                 Regenerate outdated ({outdated.length})

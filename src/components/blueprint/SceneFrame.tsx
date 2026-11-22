@@ -4,7 +4,7 @@ import { buildFileTag } from '../../lib/ledger/fileTag';
 import { isWidescreen } from '../../lib/image';
 import { sceneLightbox } from '../../lib/lightboxItems';
 import { pickReferences, refsChanged } from '../../lib/sceneImages';
-import type { ModelRoles } from '../../lib/settings';
+import { resolveRole, type ModelRoles } from '../../lib/settings';
 import { useImageStore } from '../../store/imageStore';
 import { useLightboxStore } from '../../store/lightboxStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -12,6 +12,7 @@ import type { Scene } from '../../types/blueprint';
 import { sceneOwner, type StoredAnchor } from '../../types/project';
 import { useState } from 'react';
 import AnchorChip from './AnchorChip';
+import ImageError from './ImageError';
 import ImageHistory from './ImageHistory';
 
 const btn = 'rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40';
@@ -23,7 +24,7 @@ export default function SceneFrame({ scene, anchors, allScenes, projectId }: { s
   const job = useImageStore((s) => s.jobs[owner]);
   const { generateFrame, promote, removeCurrent, cancelJob, clearJob } = useImageStore.getState();
   const geminiKey = useSettingsStore((s) => s.geminiKey);
-  const { models, maxAnchorsPerScene } = useSettingsStore((s) => s.settings);
+  const { models, maxAnchorsPerScene, draftMode } = useSettingsStore((s) => s.settings);
   const openLightbox = useLightboxStore((s) => s.open);
   const [role, setRole] = useState<keyof ModelRoles>('workhorse');
 
@@ -36,6 +37,7 @@ export default function SceneFrame({ scene, anchors, allScenes, projectId }: { s
   const canUpgrade = !!current && current.source === 'generated' && current.model !== models.hero && !running && !!geminiKey;
   const state = (id: string): 'used' | 'missing' | 'dropped' | 'unknown' =>
     sel.used.some((u) => u.anchor.id === id) ? 'used' : sel.missing.some((a) => a.id === id) ? 'missing' : sel.dropped.some((a) => a.id === id) ? 'dropped' : 'unknown';
+  const effective = models[resolveRole(role, draftMode)];
   const run = (r: keyof ModelRoles) => void generateFrame(projectId, { scene: scene.scene, keyframe_prompt: scene.keyframe_prompt, anchor_ids: scene.anchor_ids }, anchors, r);
   const zoom = () => {
     const { items, index } = sceneLightbox(allScenes, images, scene.scene);
@@ -85,10 +87,10 @@ export default function SceneFrame({ scene, anchors, allScenes, projectId }: { s
       )}
 
       <div className="no-print mt-2 flex flex-wrap items-center gap-1.5">
-        <select aria-label={`Model for scene ${scene.scene} frame`} value={role} onChange={(e) => setRole(e.target.value as keyof ModelRoles)} disabled={running} title={models[role]} className="rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 text-xs">
-          {(Object.keys(ROLE_LABEL) as (keyof ModelRoles)[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+        <select aria-label={`Model for scene ${scene.scene} frame`} value={role} onChange={(e) => setRole(e.target.value as keyof ModelRoles)} disabled={running} title={effective} className="rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 text-xs">
+          {(Object.keys(ROLE_LABEL) as (keyof ModelRoles)[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}{r === 'workhorse' && draftMode ? ' → Draft' : ''}</option>)}
         </select>
-        <button type="button" disabled={running || !geminiKey} title={geminiKey ? models[role] : 'Add a Gemini API key in Settings'} onClick={() => run(role)} className="rounded border border-amber-400 bg-amber-400 px-2 py-1 text-xs font-medium text-black disabled:cursor-not-allowed disabled:opacity-40">
+        <button type="button" disabled={running || !geminiKey} title={geminiKey ? effective : 'Add a Gemini API key in Settings'} onClick={() => run(role)} className="rounded border border-amber-400 bg-amber-400 px-2 py-1 text-xs font-medium text-black disabled:cursor-not-allowed disabled:opacity-40">
           {current ? 'Regenerate frame' : 'Generate frame'}
         </button>
         {canUpgrade && <button type="button" onClick={() => run('hero')} className={btn} title={`Re-render with ${models.hero}; the current frame stays in history`}>Upgrade to Hero</button>}
@@ -96,9 +98,7 @@ export default function SceneFrame({ scene, anchors, allScenes, projectId }: { s
         {current && <button type="button" disabled={running} onClick={() => void removeCurrent(projectId, owner)} className={btn}>Remove</button>}
       </div>
 
-      {job?.status === 'error' && (
-        <p role="alert" className="mt-2 text-xs text-red-300">{job.message} <button type="button" onClick={() => clearJob(owner)} className="underline">Dismiss</button></p>
-      )}
+      {job?.status === 'error' && <ImageError job={job} onRetry={() => run(role)} onDismiss={() => clearJob(owner)} />}
       <ImageHistory older={older} onUse={(id) => void promote(projectId, id)} />
     </section>
   );

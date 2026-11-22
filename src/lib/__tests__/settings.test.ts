@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { STORAGE_KEYS } from '../keys';
-import { DEFAULT_MODELS, DEFAULT_SETTINGS, sanitizeSettings } from '../settings';
+import { DEFAULT_MODELS, DEFAULT_SETTINGS, resolveRole, sanitizeSettings } from '../settings';
 import { useSettingsStore } from '../../store/settingsStore';
 
 class MemStorage implements Storage {
@@ -34,6 +34,12 @@ describe('sanitizeSettings', () => {
       expect(sanitizeSettings({ claudeEffort: e }).claudeEffort).toBe(e);
     for (const bad of ['LOW', 'ultra', 5, null, undefined, {}]) expect(sanitizeSettings({ claudeEffort: bad }).claudeEffort).toBe('default');
     expect(DEFAULT_SETTINGS.claudeEffort).toBe('default');
+  });
+
+  it('keeps draft mode only when it is exactly true', () => {
+    expect(sanitizeSettings({ draftMode: true }).draftMode).toBe(true);
+    for (const bad of [false, 'true', 1, null, undefined, {}]) expect(sanitizeSettings({ draftMode: bad }).draftMode).toBe(false);
+    expect(DEFAULT_SETTINGS.draftMode).toBe(false);
   });
 
   it('trims, falls back per field and clamps the anchor cap', () => {
@@ -105,5 +111,24 @@ describe('settings store', () => {
     expect(useSettingsStore.getState().persistent).toBe(false);
     expect(() => useSettingsStore.getState().setAnthropicKey('k')).not.toThrow();
     expect(useSettingsStore.getState().anthropicKey).toBe('k'); // in memory for this tab
+  });
+});
+
+describe('resolveRole', () => {
+  it('turns Workhorse into Draft in draft mode, and leaves Hero and Draft alone', () => {
+    expect(resolveRole('workhorse', true)).toBe('draft');
+    expect(resolveRole('hero', true)).toBe('hero');
+    expect(resolveRole('draft', true)).toBe('draft');
+  });
+  it('changes nothing when draft mode is off', () => {
+    for (const r of ['workhorse', 'hero', 'draft'] as const) expect(resolveRole(r, false)).toBe(r);
+  });
+});
+
+describe('draft mode persistence', () => {
+  it('survives a reload', () => {
+    useSettingsStore.getState().updateSettings({ draftMode: true });
+    useSettingsStore.getState().reload();
+    expect(useSettingsStore.getState().settings.draftMode).toBe(true);
   });
 });

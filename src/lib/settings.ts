@@ -26,6 +26,8 @@ export interface Settings {
   /** Reasoning effort for blueprint generation. Lower is cheaper and faster; thinking tokens bill as output. */
   claudeEffort: EffortSetting;
   models: ModelRoles;
+  /** Gemini model that listens to the song to write the audio brief. Must accept audio input and return text. */
+  briefModel: string;
   /** Cap on reference anchors passed with a scene keyframe. */
   maxAnchorsPerScene: number;
   /** When on, Workhorse generations use the Draft model. An explicit Hero choice (including Upgrade to Hero) is unaffected. */
@@ -45,10 +47,14 @@ export const DEFAULT_MODELS: ModelRoles = {
   draft: 'gemini-3.1-flash-lite-image',
 };
 
+/** A text model that accepts audio. Unverified against your key: use "Test key & list models" in Settings to pick another. */
+export const DEFAULT_BRIEF_MODEL = 'gemini-2.5-pro';
+
 export const DEFAULT_SETTINGS: Settings = {
   claudeModel: 'claude-sonnet-5-5',
   claudeEffort: 'default',
   models: DEFAULT_MODELS,
+  briefModel: DEFAULT_BRIEF_MODEL,
   maxAnchorsPerScene: 3,
   draftMode: false,
 };
@@ -70,6 +76,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       hero: str(m.hero, DEFAULT_MODELS.hero),
       draft: str(m.draft, DEFAULT_MODELS.draft),
     },
+    briefModel: str(o.briefModel, DEFAULT_BRIEF_MODEL),
     draftMode: o.draftMode === true,
     maxAnchorsPerScene: Number.isInteger(n) ? Math.min(MAX_ANCHORS_LIMIT, Math.max(1, n)) : DEFAULT_SETTINGS.maxAnchorsPerScene,
   };

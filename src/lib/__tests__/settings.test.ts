@@ -132,3 +132,13 @@ describe('draft mode persistence', () => {
     expect(useSettingsStore.getState().settings.draftMode).toBe(true);
   });
 });
+
+describe('briefModel', () => {
+  it('defaults, trims, and falls back when blank or not a string', async () => {
+    const { DEFAULT_BRIEF_MODEL } = await import('../settings');
+    expect(DEFAULT_SETTINGS.briefModel).toBe(DEFAULT_BRIEF_MODEL);
+    expect(sanitizeSettings({ briefModel: '  gemini-x  ' }).briefModel).toBe('gemini-x');
+    expect(sanitizeSettings({ briefModel: '   ' }).briefModel).toBe(DEFAULT_BRIEF_MODEL);
+    expect(sanitizeSettings({ briefModel: 7 }).briefModel).toBe(DEFAULT_BRIEF_MODEL);
+  });
+});

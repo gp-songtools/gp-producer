@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { STORAGE_KEYS, storageAvailable, storageGet, storageRemove, storageSet } from '../lib/keys';
-import { DEFAULT_MODELS, DEFAULT_SETTINGS, sanitizeSettings, type Settings } from '../lib/settings';
+import { DEFAULT_BRIEF_MODEL, DEFAULT_MODELS, DEFAULT_SETTINGS, sanitizeSettings, type Settings } from '../lib/settings';
 
 interface SettingsState {
   anthropicKey: string;
@@ -57,7 +57,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     storageSet(STORAGE_KEYS.settings, JSON.stringify(next));
     set({ settings: next });
   },
-  resetModels: () => get().updateSettings({ models: { ...DEFAULT_MODELS } }),
+  resetModels: () => get().updateSettings({ models: { ...DEFAULT_MODELS }, briefModel: DEFAULT_BRIEF_MODEL }),
   forgetKeys: () => {
     storageRemove(STORAGE_KEYS.anthropic);
     storageRemove(STORAGE_KEYS.gemini);

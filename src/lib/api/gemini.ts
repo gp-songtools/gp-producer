@@ -65,7 +65,7 @@ function friendlyGeminiError(status: number, apiStatus: string, message: string,
       return `Google denied access: ${message}`;
     case 404:
       return model
-        ? `Gemini doesn't know the model "${model}" for image generation. Use "Test & list models" in Settings to pick a valid one.`
+        ? `Gemini doesn't know the model "${model}". Use "Test key & list models" in Settings to pick a valid one.`
         : `Gemini returned not found: ${message}`;
     case 429:
       return 'Gemini is rate limiting or out of quota for this key. Wait a moment, or check your Google AI quota.';
@@ -276,4 +276,69 @@ export async function generateImage(r: GenerateImageRequest): Promise<GeneratedI
     }
     throw e;
   }
+}
+
+// ---- audio brief (listening to the song) ----------------------------------------------------------------------
+
+/** Inline audio shares the ~20 MB request limit with the prompt, and base64 adds a third. 14 MB of audio stays under it. */
+export const MAX_AUDIO_BYTES = 14 * 1024 * 1024;
+const BRIEF_TIMEOUT_MS = 300_000;
+const BRIEF_MAX_OUTPUT_TOKENS = 16_384;
+
+export interface AudioBriefRequest extends Common {
+  model: string;
+  /** The full brief prompt, lyrics already filled in. */
+  prompt: string;
+  audio: { mimeType: string; /** Base64, no data: prefix. */ data: string };
+}
+
+const AUDIO_MIME: Record<string, string> = { mp3: 'audio/mpeg', wav: 'audio/wav', aac: 'audio/aac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', flac: 'audio/flac', m4a: 'audio/aac', aiff: 'audio/aiff' };
+
+/** The MIME type to send: the browser's own if it gave one, otherwise by extension. */
+export function audioMimeType(file: { name: string; type: string }): string {
+  if (file.type.startsWith('audio/')) return file.type;
+  return AUDIO_MIME[file.name.split('.').pop()?.toLowerCase() ?? ''] ?? 'audio/mpeg';
+}
+
+export function buildBriefBody(r: Pick<AudioBriefRequest, 'prompt' | 'audio'>) {
+  return {
+    contents: [{ role: 'user', parts: [{ text: r.prompt }, { inlineData: { mimeType: r.audio.mimeType, data: r.audio.data } }] }],
+    generationConfig: { maxOutputTokens: BRIEF_MAX_OUTPUT_TOKENS },
+  };
+}
+
+/** The model was asked for one Markdown code block; remove that outer fence so the brief pastes as plain Markdown. */
+export function stripOuterFence(text: string): string {
+  const t = text.trim();
+  const m = /^```[a-zA-Z]*\r?\n([\s\S]*?)\r?\n```$/.exec(t);
+  return (m ? m[1] : t).trim();
+}
+
+/** Pulls the brief text out of a response, or throws an ApiError saying why there isn't any. */
+export function parseBriefResponse(r: GenerateResponse): string {
+  const block = r.promptFeedback?.blockReason;
+  if (block) throw new ApiError(`Gemini blocked this request (${block}).${r.promptFeedback?.blockReasonMessage ? ` ${r.promptFeedback.blockReasonMessage}` : ''}`, null, 'blocked');
+  const cand = r.candidates?.[0];
+  const text = (cand?.content?.parts ?? []).filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text as string).join('');
+  const finish = cand?.finishReason ?? '';
+  if (!text.trim()) {
+    if (BLOCKING_FINISH.has(finish)) throw new ApiError(`Gemini declined to describe this audio (${finish}).${cand?.finishMessage ? ` ${cand.finishMessage}` : ''}`, null, 'blocked');
+    throw new ApiError(`Gemini returned no text${finish ? ` (${finish})` : ''}. Try again, or use a different brief model in Settings.`, null, 'empty');
+  }
+  if (finish === 'MAX_TOKENS') throw new ApiError('Gemini ran out of output space before finishing the brief. Try again, or paste it from the Gemini app.', null, 'truncated');
+  return stripOuterFence(text);
+}
+
+/** Sends the song and the brief prompt to Gemini and returns the brief as Markdown. The audio goes to Google; nothing is stored. */
+export async function generateAudioBrief(r: AudioBriefRequest): Promise<string> {
+  const bytes = r.audio.data.length + r.prompt.length;
+  if (bytes > MAX_AUDIO_BYTES * 1.4)
+    throw new ApiError(
+      `That audio is too large to send in one request (about ${(r.audio.data.length * 0.75 / 1048576).toFixed(0)} MB; the limit here is ${MAX_AUDIO_BYTES / 1048576} MB). Use a smaller export such as a 128 kbps MP3, or paste the brief from the Gemini app.`,
+      null,
+      'too_large',
+    );
+  const url = `${GEMINI_BASE}/models/${encodeURIComponent(r.model)}:generateContent`;
+  const res = await send<GenerateResponse>({ ...r, timeoutMs: r.timeoutMs ?? BRIEF_TIMEOUT_MS, method: 'POST', url, body: buildBriefBody(r), model: r.model });
+  return parseBriefResponse(res);
 }

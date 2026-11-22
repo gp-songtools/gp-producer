@@ -115,7 +115,7 @@ export default function AudioPlayer() {
         </div>
       )}
       {error && <p role="alert" className="mt-2 text-xs text-red-300">{error}</p>}
-      <p className="mt-2 text-xs text-neutral-500">Kept in this tab's memory only. It is never uploaded or sent to Claude.</p>
+      <p className="mt-2 text-xs text-neutral-500">Kept in this tab's memory only and never sent to Claude. It goes to Google only if you click "Generate with Gemini" in the audio brief.</p>
     </Card>
   );
 }

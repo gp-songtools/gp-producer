@@ -22,6 +22,8 @@ export interface Project {
   vision: Vision;
   /** Pasted Gemini audio brief. */
   audioBrief: string;
+  /** Signature of the singing stop tags the user has checked by ear (see `stopTagSignature`). Stale once the tags change. */
+  stopTagsChecked?: string;
   treatment: Treatment | null;
 }
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError, ImageBlockedError } from '../../lib/api/errors';
 import { generateImage, listModels, type GeminiModel } from '../../lib/api/gemini';
 import { imageDimensions, isWidescreen, type Dimensions } from '../../lib/image';
-import { DEFAULT_MODELS, MAX_ANCHORS_LIMIT, type ModelRoles } from '../../lib/settings';
+import { DEFAULT_BRIEF_MODEL, DEFAULT_MODELS, MAX_ANCHORS_LIMIT, type ModelRoles } from '../../lib/settings';
 import { useSettingsStore } from '../../store/settingsStore';
 
 const input = 'w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-amber-400';
@@ -106,6 +106,26 @@ export default function GeminiModels() {
           )}
         </div>
       ))}
+
+      <div>
+        <label htmlFor="model-brief" className={label}>Audio brief model (listens to your song; text output)</label>
+        <datalist id="gemini-text-model-ids">{models.filter((m) => !m.isImage).map((m) => <option key={m.id} value={m.id}>{m.displayName}</option>)}</datalist>
+        <input
+          id="model-brief"
+          key={settings.briefModel}
+          list="gemini-text-model-ids"
+          className={input}
+          defaultValue={settings.briefModel}
+          placeholder={DEFAULT_BRIEF_MODEL}
+          spellCheck={false}
+          onBlur={(e) => e.target.value.trim() !== settings.briefModel && updateSettings({ briefModel: e.target.value })}
+        />
+        {listing.status === 'ok' && (
+          <p className={`mt-1 text-xs ${known.has(settings.briefModel) ? 'text-emerald-400' : 'text-amber-300'}`}>
+            {known.has(settings.briefModel) ? 'Available to your key.' : "Not in your key's model list. Pick a text model that accepts audio."}
+          </p>
+        )}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" disabled={!geminiKey || listing.status === 'loading'} onClick={() => void loadModels()} className={small}>

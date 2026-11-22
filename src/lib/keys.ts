@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
   anthropic: 'gpp.anthropicKey',
   gemini: 'gpp.geminiKey',
   settings: 'gpp.settings',
+  audioConsent: 'gpp.audioToGeminiOk',
 } as const;
 
 export function storageGet(key: string): string | null {

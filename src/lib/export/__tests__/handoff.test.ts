@@ -29,7 +29,7 @@ describe('lyricBlock', () => {
 });
 
 describe('buildHandoff', () => {
-  const input = { projectName: 'Trailer', scenes: [plain, lip], lrc, tags, tagsChecked: true };
+  const input = { projectName: 'Trailer', scenes: [plain, lip], lrc, tags, withheld: 0 };
 
   it('lists only LIP-SYNC scenes, with file tag, times, lyric block, backing flag and framing', () => {
     const t = buildHandoff(input);
@@ -49,14 +49,14 @@ describe('buildHandoff', () => {
   });
 
   it('leaves stop tags out until they are checked, and says so', () => {
-    const t = buildHandoff({ ...input, tagsChecked: false });
+    const t = buildHandoff({ ...input, tags: [], withheld: 1 });
     expect(t).not.toContain('[ECHO]');
-    expect(t).toContain('NOT checked by ear yet');
+    expect(t).toContain('1 from the audio brief are NOT checked by ear yet');
     expect(t).toContain('[03:17.40]');
   });
 
   it('says when there are no tags or no lip-sync scenes', () => {
-    expect(buildHandoff({ ...input, tags: [], tagsChecked: false })).toContain('none found in the audio brief');
+    expect(buildHandoff({ ...input, tags: [], withheld: 0 })).toContain('Singing stop tags: none.');
     expect(buildHandoff({ ...input, scenes: [plain] })).toBe('LIP-SYNC HANDOFF: Trailer\n\nNo LIP-SYNC scenes in this ledger.\n');
   });
 

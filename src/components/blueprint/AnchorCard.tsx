@@ -5,11 +5,12 @@ import { useLightboxStore } from '../../store/lightboxStore';
 import ImageHistory from './ImageHistory';
 import { imagesForOwner, isStale } from '../../lib/anchorImages';
 import { isWidescreen } from '../../lib/image';
-import type { ModelRoles } from '../../lib/settings';
+import { resolveRole, type ModelRoles } from '../../lib/settings';
 import { useImageStore } from '../../store/imageStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { anchorOwner, type StoredAnchor } from '../../types/project';
 import CopyButton from '../ui/CopyButton';
+import ImageError from './ImageError';
 
 const btn = 'rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40';
 const ROLE_LABEL: Record<keyof ModelRoles, string> = { workhorse: 'Workhorse', hero: 'Hero', draft: 'Draft' };
@@ -21,6 +22,7 @@ export default function AnchorCard({ anchor, projectId, siblings }: { anchor: St
   const { generateAnchor, uploadAnchor, promote, removeCurrent, cancelJob, clearJob } = useImageStore.getState();
   const geminiKey = useSettingsStore((s) => s.geminiKey);
   const models = useSettingsStore((s) => s.settings.models);
+  const draftMode = useSettingsStore((s) => s.settings.draftMode);
   const [role, setRole] = useState<keyof ModelRoles>('workhorse');
   const fileRef = useRef<HTMLInputElement>(null);
   const openLightbox = useLightboxStore((s) => s.open);
@@ -30,6 +32,7 @@ export default function AnchorCard({ anchor, projectId, siblings }: { anchor: St
   const running = job?.status === 'running';
   const stale = isStale(current, anchor.prompt);
   const canUpgrade = !!current && current.source === 'generated' && current.model !== models.hero && !running && !!geminiKey;
+  const effective = models[resolveRole(role, draftMode)];
   const run = (r: keyof ModelRoles) => void generateAnchor(projectId, { id: anchor.id, prompt: anchor.prompt }, r);
 
   return (
@@ -78,15 +81,15 @@ export default function AnchorCard({ anchor, projectId, siblings }: { anchor: St
           value={role}
           onChange={(e) => setRole(e.target.value as keyof ModelRoles)}
           disabled={running}
-          title={models[role]}
+          title={effective}
           className="rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 text-xs"
         >
-          {(Object.keys(ROLE_LABEL) as (keyof ModelRoles)[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+          {(Object.keys(ROLE_LABEL) as (keyof ModelRoles)[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}{r === 'workhorse' && draftMode ? ' → Draft' : ''}</option>)}
         </select>
         <button
           type="button"
           disabled={running || !geminiKey}
-          title={geminiKey ? models[role] : 'Add a Gemini API key in Settings'}
+          title={geminiKey ? effective : 'Add a Gemini API key in Settings'}
           onClick={() => run(role)}
           className="rounded border border-amber-400 bg-amber-400 px-2 py-1 text-xs font-medium text-black disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -112,12 +115,7 @@ export default function AnchorCard({ anchor, projectId, siblings }: { anchor: St
         {current && <button type="button" disabled={running} onClick={() => void removeCurrent(projectId, owner)} className={btn} title={older.length ? 'Remove this image and go back to the previous one' : 'Remove this image'}>Remove</button>}
       </div>
 
-      {job?.status === 'error' && (
-        <p role="alert" className="mt-2 text-xs text-red-300">
-          {job.message}{' '}
-          <button type="button" onClick={() => clearJob(owner)} className="underline">Dismiss</button>
-        </p>
-      )}
+      {job?.status === 'error' && <ImageError job={job} onRetry={() => run(role)} onDismiss={() => clearJob(owner)} />}
 
       <ImageHistory older={older} onUse={(id) => void promote(projectId, id)} />
 

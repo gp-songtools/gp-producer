@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import AnchorGallery from '../components/blueprint/AnchorGallery';
 import FrameToolbar from '../components/blueprint/FrameToolbar';
+import ImageBar from '../components/blueprint/ImageBar';
 import LedgerToolbar from '../components/blueprint/LedgerToolbar';
 import SceneCard from '../components/blueprint/SceneCard';
 import SceneTimeline from '../components/blueprint/SceneTimeline';
@@ -92,6 +93,7 @@ export default function BlueprintPage() {
         <>
           <ValidationBanner errors={errors} warnings={warnings} sceneCount={scenes.length} />
           <TreatmentPanel treatment={project.treatment!} />
+          <ImageBar />
           <AnchorGallery anchors={anchors} projectId={project.id} />
           <section aria-label="Scene ledger" className="space-y-3">
             <h2 className="text-base font-semibold">Storyboard & scene ledger</h2>

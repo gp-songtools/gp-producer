@@ -1,5 +1,6 @@
 import { imagesForOwner } from '../../lib/anchorImages';
 import { useImageStore } from '../../store/imageStore';
+import { resolveRole } from '../../lib/settings';
 import { useSettingsStore } from '../../store/settingsStore';
 import { anchorOwner, type StoredAnchor } from '../../types/project';
 import type { AnchorCategory } from '../../types/blueprint';
@@ -18,16 +19,27 @@ export default function AnchorGallery({ anchors, projectId }: { anchors: StoredA
   const images = useImageStore((s) => s.images);
   const jobs = useImageStore((s) => s.jobs);
   const batch = useImageStore((s) => s.batch);
-  const { generateMissing, cancelBatch } = useImageStore.getState();
+  const { generateMissing, generateAnchors, cancelBatch } = useImageStore.getState();
   const geminiKey = useSettingsStore((s) => s.geminiKey);
-  const workhorse = useSettingsStore((s) => s.settings.models.workhorse);
+  const { models, draftMode } = useSettingsStore((s) => s.settings);
+  const batchModel = models[resolveRole('workhorse', draftMode)];
 
   const missing = anchors.filter((a) => imagesForOwner(images, anchorOwner(a.id)).length === 0 && jobs[anchorOwner(a.id)]?.status !== 'running');
   const withImage = anchors.length - anchors.filter((a) => imagesForOwner(images, anchorOwner(a.id)).length === 0).length;
 
+  const failed = anchors.filter((a) => {
+    const j = jobs[anchorOwner(a.id)];
+    return j?.status === 'error' && j.kind !== 'upload';
+  });
+
+  const confirmRun = (n: number) => window.confirm(`Generate ${n} image${n === 1 ? '' : 's'} with ${batchModel}? Each is a real image on your Gemini account.`);
   const start = () => {
-    if (!window.confirm(`Generate ${missing.length} image${missing.length === 1 ? '' : 's'} with ${workhorse}? Each is a real image on your Gemini account.`)) return;
+    if (!confirmRun(missing.length)) return;
     void generateMissing(projectId, missing.map((a) => ({ id: a.id, prompt: a.prompt })));
+  };
+  const retry = () => {
+    if (!confirmRun(failed.length)) return;
+    void generateAnchors(projectId, failed.map((a) => ({ id: a.id, prompt: a.prompt })));
   };
 
   return (
@@ -43,6 +55,7 @@ export default function AnchorGallery({ anchors, projectId }: { anchors: StoredA
               Generate missing ({missing.length})
             </button>
           )}
+          {!batch?.running && failed.length > 0 && <button type="button" onClick={retry} disabled={!geminiKey} className={btn}>Retry failed ({failed.length})</button>}
         </div>
       }
     >

@@ -28,6 +28,8 @@ export interface Settings {
   models: ModelRoles;
   /** Cap on reference anchors passed with a scene keyframe. */
   maxAnchorsPerScene: number;
+  /** When on, Workhorse generations use the Draft model. An explicit Hero choice (including Upgrade to Hero) is unaffected. */
+  draftMode: boolean;
 }
 
 export const CLAUDE_MODEL_PRESETS = [
@@ -48,6 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   claudeEffort: 'default',
   models: DEFAULT_MODELS,
   maxAnchorsPerScene: 3,
+  draftMode: false,
 };
 
 export const MAX_ANCHORS_LIMIT = 6;
@@ -67,6 +70,10 @@ export function sanitizeSettings(raw: unknown): Settings {
       hero: str(m.hero, DEFAULT_MODELS.hero),
       draft: str(m.draft, DEFAULT_MODELS.draft),
     },
+    draftMode: o.draftMode === true,
     maxAnchorsPerScene: Number.isInteger(n) ? Math.min(MAX_ANCHORS_LIMIT, Math.max(1, n)) : DEFAULT_SETTINGS.maxAnchorsPerScene,
   };
 }
+
+/** The model role a generation actually uses: draft mode turns Workhorse into Draft; Hero and Draft stay as chosen. */
+export const resolveRole = (role: keyof ModelRoles, draftMode: boolean): keyof ModelRoles => (draftMode && role === 'workhorse' ? 'draft' : role);

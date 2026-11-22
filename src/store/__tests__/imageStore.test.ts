@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as db from '../../lib/db';
 import { ApiError, ImageBlockedError } from '../../lib/api/errors';
 import { useImageStore } from '../imageStore';
+import { DEFAULT_SETTINGS } from '../../lib/settings';
 import { useSettingsStore } from '../settingsStore';
 
 const gen = vi.hoisted(() => ({ fn: vi.fn() }));
@@ -24,8 +25,8 @@ beforeEach(async () => {
   globalThis.indexedDB = new IDBFactory();
   gen.fn.mockReset();
   gen.fn.mockImplementation(async () => ok());
-  useSettingsStore.setState({ geminiKey: 'GKEY' });
-  useImageStore.setState({ projectId: null, images: [], jobs: {}, batch: null });
+  useSettingsStore.setState({ geminiKey: 'GKEY', settings: DEFAULT_SETTINGS });
+  useImageStore.setState({ projectId: null, images: [], jobs: {}, batch: null, frameBatch: null, usage: {} });
 });
 
 const setup = async () => {
@@ -271,6 +272,98 @@ describe('imageStore', () => {
       await tick();
       gen.fn.mockClear();
       await useImageStore.getState().generateFrames(p.id, [S1], anchors);
+      expect(gen.fn).not.toHaveBeenCalled();
+      release();
+      await first;
+    });
+  });
+
+  describe('draft mode', () => {
+    const S1 = { scene: 1, keyframe_prompt: 'f1', anchor_ids: [] as string[] };
+    const S2 = { scene: 2, keyframe_prompt: 'f2', anchor_ids: [] as string[] };
+    const modelOf = (i = 0) => (gen.fn.mock.calls[i][0] as { model: string }).model;
+    beforeEach(() => useSettingsStore.getState().updateSettings({ draftMode: true, models: { workhorse: 'work-m', hero: 'hero-m', draft: 'draft-m' } }));
+
+    it('turns a Workhorse anchor into a Draft one, but honours an explicit Hero', async () => {
+      const p = await setup();
+      await useImageStore.getState().generateAnchor(p.id, A, 'workhorse');
+      await useImageStore.getState().generateAnchor(p.id, B, 'hero');
+      expect(modelOf(0)).toBe('draft-m');
+      expect(modelOf(1)).toBe('hero-m');
+      expect(useImageStore.getState().images.find((r) => r.ownerKey === 'anchor:character')!.model).toBe('draft-m');
+    });
+
+    it('applies to frames and to both kinds of batch', async () => {
+      const p = await setup();
+      await useImageStore.getState().generateFrame(p.id, S1, [], 'workhorse');
+      await useImageStore.getState().generateFrames(p.id, [S2], []);
+      await useImageStore.getState().generateMissing(p.id, [A]);
+      expect([modelOf(0), modelOf(1), modelOf(2)]).toEqual(['draft-m', 'draft-m', 'draft-m']);
+    });
+
+    it('does nothing special when off', async () => {
+      const p = await setup();
+      useSettingsStore.getState().updateSettings({ draftMode: false });
+      await useImageStore.getState().generateAnchor(p.id, A, 'workhorse');
+      expect(modelOf(0)).toBe('work-m');
+    });
+  });
+
+  describe('usage counter', () => {
+    it('counts each saved image under the model that made it, and not failures or cancels', async () => {
+      const p = await setup();
+      useSettingsStore.getState().updateSettings({ models: { workhorse: 'work-m', hero: 'hero-m' } });
+      await useImageStore.getState().generateAnchor(p.id, A, 'workhorse');
+      await useImageStore.getState().generateAnchor(p.id, B, 'workhorse');
+      await useImageStore.getState().generateAnchor(p.id, A, 'hero');
+      gen.fn.mockRejectedValueOnce(new ApiError('quota', 429, 'x'));
+      await useImageStore.getState().generateAnchor(p.id, C, 'hero');
+      expect(useImageStore.getState().usage).toEqual({ 'work-m': 2, 'hero-m': 1 });
+    });
+
+    it('survives switching projects (it is per session, not per project)', async () => {
+      const p1 = await setup();
+      await useImageStore.getState().generateAnchor(p1.id, A, 'workhorse');
+      const p2 = await db.createProject();
+      await useImageStore.getState().load(p2.id);
+      expect(Object.values(useImageStore.getState().usage).reduce((a, b) => a + b, 0)).toBe(1);
+    });
+  });
+
+  describe('error kinds and retrying', () => {
+    it('marks a blocked or text reply as "blocked", an API failure as "error", a bad upload as "upload"', async () => {
+      const p = await setup();
+      gen.fn.mockRejectedValueOnce(new ImageBlockedError('Gemini blocked this prompt (SAFETY)', 'SAFETY'));
+      await useImageStore.getState().generateAnchor(p.id, A, 'workhorse');
+      gen.fn.mockRejectedValueOnce(new ApiError('overloaded', 503, 'x'));
+      await useImageStore.getState().generateAnchor(p.id, B, 'workhorse');
+      await useImageStore.getState().uploadAnchor(p.id, 'prop_lamp', new File([new Uint8Array(4)], 'x.pdf', { type: 'application/pdf' }));
+      const kind = (o: string) => (useImageStore.getState().jobs[o] as { kind: string }).kind;
+      expect([kind('anchor:character'), kind('anchor:environment_a'), kind('anchor:prop_lamp')]).toEqual(['blocked', 'error', 'upload']);
+    });
+
+    it('generateAnchors retries exactly the anchors given, and a success clears the error', async () => {
+      const p = await setup();
+      gen.fn.mockRejectedValueOnce(new ApiError('overloaded', 503, 'x'));
+      await useImageStore.getState().generateAnchors(p.id, [A, B]);
+      expect(useImageStore.getState().batch).toMatchObject({ total: 2, done: 1, failed: 1 });
+      const failed = Object.entries(useImageStore.getState().jobs).filter(([, j]) => j.status === 'error').map(([k]) => k);
+      expect(failed).toHaveLength(1);
+      gen.fn.mockClear();
+      await useImageStore.getState().generateAnchors(p.id, [failed[0] === 'anchor:character' ? A : B]);
+      expect(gen.fn).toHaveBeenCalledTimes(1);
+      expect(useImageStore.getState().jobs).toEqual({});
+      expect(useImageStore.getState().images).toHaveLength(2);
+    });
+
+    it('generateAnchors skips anchors already generating', async () => {
+      const p = await setup();
+      let release!: () => void;
+      gen.fn.mockImplementation(() => new Promise((res) => { release = () => res(ok()); }));
+      const first = useImageStore.getState().generateAnchor(p.id, A, 'workhorse');
+      await tick();
+      gen.fn.mockClear();
+      await useImageStore.getState().generateAnchors(p.id, [A]);
       expect(gen.fn).not.toHaveBeenCalled();
       release();
       await first;

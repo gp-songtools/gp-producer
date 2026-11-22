@@ -110,6 +110,12 @@ export async function replaceScenes(projectId: string, scenes: Scene[]): Promise
   await tx.done;
 }
 
+/** Writes one scene (a checklist tick, a revision) without touching the others. */
+export async function putScene(projectId: string, scene: Scene): Promise<void> {
+  const d = await db();
+  await d.put('scenes', { ...scene, projectId });
+}
+
 /** Replaces anchors and scenes for a project atomically (a new blueprint). */
 export async function replaceBlueprint(
   projectId: string,

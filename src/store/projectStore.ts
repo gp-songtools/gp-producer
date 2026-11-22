@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as db from '../lib/db';
 import { parseLrc } from '../lib/lrc';
-import type { BlueprintAnchor, Scene, Treatment } from '../types/blueprint';
+import type { BlueprintAnchor, ChecklistKey, Scene, Treatment } from '../types/blueprint';
 import type { Project, RunRecord, StoredAnchor, StoredScene } from '../types/project';
 
 const SAVE_DELAY_MS = 400;
@@ -21,6 +21,10 @@ interface ProjectState {
   setBlueprint: (bp: { treatment: Treatment; anchors: BlueprintAnchor[]; scenes: Scene[] }, run?: RunRecord) => Promise<void>;
   /** Replaces the scenes (snap/repair, edits). Saves immediately. */
   setScenes: (scenes: Scene[]) => Promise<void>;
+  /** Ticks or clears one checklist item on a scene and saves just that scene. */
+  setChecklist: (sceneNo: number, key: ChecklistKey, value: boolean) => Promise<void>;
+  /** Clears every checklist item on a scene. */
+  resetChecklist: (sceneNo: number) => Promise<void>;
   /** Writes any pending project changes now. */
   flush: () => Promise<void>;
   unload: () => Promise<void>;
@@ -87,6 +91,25 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (!p) return;
       await db.replaceScenes(p.id, scenes);
       set({ scenes: scenes.map((s) => ({ ...s, projectId: p.id })) });
+    },
+
+    setChecklist: async (sceneNo, key, value) => {
+      const p = get().project;
+      const cur = get().scenes.find((s) => s.scene === sceneNo);
+      if (!p || !cur) return;
+      const next = { ...cur, checklist: { ...cur.checklist, [key]: value } };
+      set({ scenes: get().scenes.map((s) => (s.scene === sceneNo ? next : s)) });
+      await db.putScene(p.id, next);
+    },
+
+    resetChecklist: async (sceneNo) => {
+      const p = get().project;
+      const cur = get().scenes.find((s) => s.scene === sceneNo);
+      if (!p || !cur) return;
+      const { checklist: _drop, ...next } = cur;
+      void _drop;
+      set({ scenes: get().scenes.map((s) => (s.scene === sceneNo ? next : s)) });
+      await db.putScene(p.id, next);
     },
 
     flush: async () => {

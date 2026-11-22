@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseClock, parseStopTags, parseVocalMap, segmentLabel, stopTagSignature, vocalOverlaps } from '../brief';
+import { parseClock, parseStopTags, parseTagInput, parseVocalMap, segmentLabel, stopTagSignature, usableTags, vocalOverlaps } from '../brief';
 
 // Trimmed from a real Gemini answer for a spoken-word trailer parody.
 export const REAL_BRIEF = `# SONG OVERVIEW
@@ -35,7 +35,7 @@ describe('parseClock', () => {
 
 describe('parseStopTags', () => {
   it('reads the tags from a real Gemini answer', () => {
-    expect(parseStopTags(REAL_BRIEF)).toEqual([{ t: 161, tag: 'INSTRUMENTAL' }, { t: 175, tag: 'INSTRUMENTAL' }]);
+    expect(parseStopTags(REAL_BRIEF)).toEqual([{ t: 161, tag: 'INSTRUMENTAL', source: 'brief' }, { t: 175, tag: 'INSTRUMENTAL', source: 'brief' }]);
   });
   it('tolerates bullets, lower case, odd spacing, a code fence and unsorted lines', () => {
     const md = '```markdown\n## Singing Stop Tags\n- [03:21.30] [echo]\n* [01:05.5]   [ Instrumental ]\n[00:10.00]  [ECHO]\nnot a tag\n```';
@@ -43,10 +43,10 @@ describe('parseStopTags', () => {
   });
   it('ignores lyric lines and lines in other sections', () => {
     const md = '# VOCAL MAP\n[03:17.40] I don\'t belong here\n[03:19.00] [X]\n# SINGING STOP TAGS\n[03:21.30] [ECHO]\n[03:22.00] just words\n# TIMING NOTES\n[04:00.00] [LATE]';
-    expect(parseStopTags(md)).toEqual([{ t: 201.3, tag: 'ECHO' }]);
+    expect(parseStopTags(md)).toEqual([{ t: 201.3, tag: 'ECHO', source: 'brief' }]);
   });
   it('without a heading, takes any timed tag line; with nothing, returns none', () => {
-    expect(parseStopTags('[00:30.00] [ECHO]\n[00:31.00] words')).toEqual([{ t: 30, tag: 'ECHO' }]);
+    expect(parseStopTags('[00:30.00] [ECHO]\n[00:31.00] words')).toEqual([{ t: 30, tag: 'ECHO', source: 'brief' }]);
     expect(parseStopTags('')).toEqual([]);
     expect(parseStopTags('# SINGING STOP TAGS\nNone.')).toEqual([]);
   });
@@ -79,4 +79,26 @@ describe('vocalOverlaps', () => {
     expect(vocalOverlaps(map, 0, 10).some((x) => x.risky)).toBe(true);
   });
   it('treats touching edges as not overlapping', () => expect(vocalOverlaps(map, 161, 168).map((x) => x.segment.type)).toEqual(['SPOKEN']));
+});
+
+describe('parseTagInput', () => {
+  it('accepts a time and a label, with or without brackets, and marks it manual', () => {
+    expect(parseTagInput('01:14.50', ' [instrumental] ')).toEqual({ ok: true, tag: { t: 74.5, tag: 'INSTRUMENTAL', source: 'manual' } });
+    expect(parseTagInput('1:14', 'echo')).toMatchObject({ ok: true, tag: { t: 74, tag: 'ECHO' } });
+  });
+  it('rejects a bad time, an empty label and stray brackets', () => {
+    expect(parseTagInput('soon', 'ECHO')).toMatchObject({ ok: false });
+    expect(parseTagInput('01:14', '  ')).toMatchObject({ ok: false });
+    expect(parseTagInput('01:14', '[]')).toMatchObject({ ok: false });
+    expect(parseTagInput('01:14', 'A [B] C')).toMatchObject({ ok: false });
+  });
+});
+
+describe('usableTags', () => {
+  const brief = [{ t: 30, tag: 'ECHO', source: 'brief' as const }];
+  const manual = [{ t: 10, tag: 'INSTRUMENTAL', source: 'manual' as const }];
+  it('holds back brief tags until checked, always keeps the user\'s own, sorted by time', () => {
+    expect(usableTags(brief, manual, false)).toEqual(manual);
+    expect(usableTags(brief, manual, true).map((t) => t.t)).toEqual([10, 30]);
+  });
 });

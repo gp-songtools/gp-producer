@@ -5,6 +5,8 @@ export interface StopTag {
   t: number;
   /** Upper-cased label without brackets, e.g. "ECHO". */
   tag: string;
+  /** From the Gemini brief (a draft until checked by ear) or typed in by the user (already checked). */
+  source?: 'brief' | 'manual';
 }
 
 export interface VocalSegment {
@@ -44,7 +46,7 @@ export function parseStopTags(brief: string): StopTag[] {
   for (const line of lines) {
     const m = STOP_LINE.exec(line);
     const t = m ? parseClock(m[1]) : null;
-    if (m && t !== null) out.push({ t, tag: m[2].trim().toUpperCase() });
+    if (m && t !== null) out.push({ t, tag: m[2].trim().toUpperCase(), source: 'brief' });
   }
   return out.sort((a, b) => a.t - b.t);
 }
@@ -82,3 +84,18 @@ export function vocalOverlaps(map: VocalSegment[], start: number, end: number): 
 }
 
 export const segmentLabel = (s: VocalSegment): string => `${fmt(s.start)}–${fmt(s.end)} ${s.type}`;
+
+/** Validates a tag typed in by the user: a clock time and a label, with or without the brackets. */
+export function parseTagInput(time: string, label: string): { ok: true; tag: StopTag } | { ok: false; message: string } {
+  const t = parseClock(time.trim());
+  if (t === null) return { ok: false, message: 'Enter the time as MM:SS or MM:SS.xx, e.g. 01:14 or 01:14.50.' };
+  const tag = label.trim().replace(/^\[+|\]+$/g, '').trim().toUpperCase();
+  if (!tag) return { ok: false, message: 'Enter a tag such as INSTRUMENTAL or ECHO.' };
+  if (/[\[\]\r\n]/.test(tag)) return { ok: false, message: 'Use a single word or phrase without brackets.' };
+  return { ok: true, tag: { t, tag, source: 'manual' } };
+}
+
+/** Tags that may go into the exported files: the user's own, plus the brief's once those are checked by ear. Time-sorted. */
+export function usableTags(briefTags: StopTag[], manual: StopTag[], briefChecked: boolean): StopTag[] {
+  return [...(briefChecked ? briefTags : []), ...manual].sort((a, b) => a.t - b.t);
+}

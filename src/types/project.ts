@@ -8,6 +8,9 @@ export interface Vision {
   aesthetic: string;
 }
 
+/** `tag`: replace a run of backing lines with one [BACKING] no-singing tag; `omit`: drop them; `include`: keep them as sung lines. */
+export type BackingMode = 'tag' | 'omit' | 'include';
+
 export interface Project {
   id: string;
   name: string;
@@ -24,6 +27,10 @@ export interface Project {
   audioBrief: string;
   /** Signature of the singing stop tags the user has checked by ear (see `stopTagSignature`). Stale once the tags change. */
   stopTagsChecked?: string;
+  /** Stop tags typed in by the user (they count as checked by ear). */
+  manualTags?: { t: number; tag: string }[];
+  /** How backing-vocal lines (wholly in parentheses) appear in lyrics-for-lipsync.txt. Default: a no-singing tag in their place. */
+  backingMode?: BackingMode;
   treatment: Treatment | null;
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LrcLine } from '../../../types/blueprint';
-import { buildLyricsFile, countBacking } from '../lyricsFile';
+import { buildLyricsFile, countBacking, spellTag } from '../lyricsFile';
 
 const lrc: LrcLine[] = [
   { t: 197.4, text: "I don't belong here, it's not safe" },
@@ -19,7 +19,7 @@ describe('buildLyricsFile', () => {
   });
 
   it('by default replaces a run of backing lines with one no-singing tag, so singing does not carry on', () => {
-    const t = buildLyricsFile(lrc, tags);
+    const t = buildLyricsFile(lrc, tags, 'tag', 'own');
     expect(t.split('\n')).toEqual(["[03:17.40] I don't belong here, it's not safe", '[03:19.00] [BACKING]', '[03:21.30] [ECHO]', '[03:25.00] Next line', '[03:30.00] [BACKING]', '[03:50.00] [INSTRUMENTAL]', '']);
     expect(t).not.toContain('(not safe)');
     expect(t).not.toContain('(oh no)');
@@ -55,7 +55,7 @@ describe('NARRATOR span', () => {
     { t: 30, text: 'Our singer starts' },
   ];
   it('drops the narrator\'s lines (backing ones too) and writes one tag in their place', () => {
-    const t = buildLyricsFile(lines, [{ t: 7, tag: 'NARRATOR', endT: 21, source: 'manual' }]);
+    const t = buildLyricsFile(lines, [{ t: 7, tag: 'NARRATOR', endT: 21, source: 'manual' }], 'tag', 'own');
     expect(t).toBe('[00:07.00] [NARRATOR]\n[00:21.00] Five friends.\n[00:30.00] Our singer starts\n');
     expect(t).not.toContain('BACKING');
   });
@@ -63,12 +63,41 @@ describe('NARRATOR span', () => {
     expect(buildLyricsFile(lines, [{ t: 7, tag: 'NARRATOR', endT: 21 }])).toContain('[00:21.00] Five friends.');
   });
   it('a NARRATOR tag without an end only marks a moment and removes nothing', () => {
-    const t = buildLyricsFile(lines, [{ t: 7, tag: 'NARRATOR' }], 'include');
+    const t = buildLyricsFile(lines, [{ t: 7, tag: 'NARRATOR' }], 'include', 'own');
     expect(t).toContain('This October.');
     expect(t).toContain('[00:07.00] [NARRATOR]');
   });
   it('does not touch lines outside the span, and still tags backing runs there', () => {
-    const t = buildLyricsFile([...lines, { t: 35, text: '(ooh)' }], [{ t: 7, tag: 'NARRATOR', endT: 21 }]);
+    const t = buildLyricsFile([...lines, { t: 35, text: '(ooh)' }], [{ t: 7, tag: 'NARRATOR', endT: 21 }], 'tag', 'own');
     expect(t).toContain('[00:35.00] [BACKING]');
+  });
+});
+
+describe('tag spelling', () => {
+  const lines: LrcLine[] = [{ t: 7, text: 'Narrator' }, { t: 22, text: '(ooh)' }, { t: 30, text: 'Sung' }];
+  const tags = [{ t: 7, tag: 'NARRATOR', endT: 21, source: 'manual' as const }, { t: 40, tag: 'ECHO', source: 'manual' as const }, { t: 50, tag: 'INSTRUMENTAL', source: 'brief' as const }];
+
+  it('writes narrator and backing as [INSTRUMENTAL] by default, which the notebook already honours', () => {
+    expect(buildLyricsFile(lines, tags)).toBe('[00:07.00] [INSTRUMENTAL]\n[00:22.00] [INSTRUMENTAL]\n[00:30.00] Sung\n[00:40.00] [ECHO]\n[00:50.00] [INSTRUMENTAL]\n');
+  });
+  it('can add the label after INSTRUMENTAL, or use the app\'s own names', () => {
+    expect(buildLyricsFile(lines, tags, 'tag', 'labeled')).toContain('[00:07.00] [INSTRUMENTAL NARRATOR]\n[00:22.00] [INSTRUMENTAL BACKING]');
+    expect(buildLyricsFile(lines, tags, 'tag', 'own')).toContain('[00:07.00] [NARRATOR]\n[00:22.00] [BACKING]');
+  });
+  it('never respells ECHO or other tags, and never changes the lines it keeps', () => {
+    for (const sp of ['instrumental', 'labeled', 'own'] as const) {
+      const t = buildLyricsFile(lines, tags, 'tag', sp);
+      expect(t).toContain('[00:40.00] [ECHO]');
+      expect(t).toContain('[00:30.00] Sung');
+    }
+    expect(spellTag('ECHO', 'instrumental')).toBe('ECHO');
+    expect(spellTag('NARRATOR', 'instrumental')).toBe('INSTRUMENTAL');
+    expect(spellTag('BACKING', 'labeled')).toBe('INSTRUMENTAL BACKING');
+  });
+  it('keeps one tag when respelling makes two identical at the same instant', () => {
+    const lrc1 = [{ t: 7, text: '(oh)' }];
+    const narrator = [{ t: 7, tag: 'NARRATOR' }]; // a bare tag marks a moment, so the backing line isn't removed
+    expect(buildLyricsFile(lrc1, narrator)).toBe('[00:07.00] [INSTRUMENTAL]\n');
+    expect(buildLyricsFile(lrc1, narrator, 'tag', 'own')).toBe('[00:07.00] [BACKING]\n[00:07.00] [NARRATOR]\n');
   });
 });

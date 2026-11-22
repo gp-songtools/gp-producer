@@ -24,12 +24,13 @@ export default function HandoffView() {
   const checked = briefTags.length > 0 && project.stopTagsChecked === sig;
   const withheld = checked ? 0 : briefTags.length;
   const backing = project.backingMode ?? 'tag';
+  const spelling = project.tagSpelling ?? 'instrumental';
 
   const usable = useMemo(() => usableTags(briefTags, manualTags, checked), [briefTags, manualTags, checked]);
   const shown = useMemo(() => [...briefTags, ...manualTags].sort((a, b) => a.t - b.t), [briefTags, manualTags]);
   const lip = useMemo(() => scenes.filter((s) => s.lip_sync).sort((a, b) => a.scene - b.scene), [scenes]);
   const handoffText = useMemo(() => buildHandoff({ projectName: project.name, scenes, lrc: project.lrcLines, tags: usable, withheld }), [project.name, scenes, project.lrcLines, usable, withheld]);
-  const lyricsText = useMemo(() => buildLyricsFile(project.lrcLines, usable, backing), [project.lrcLines, usable, backing]);
+  const lyricsText = useMemo(() => buildLyricsFile(project.lrcLines, usable, backing, spelling), [project.lrcLines, usable, backing, spelling]);
 
   if (scenes.length === 0)
     return (
@@ -62,7 +63,7 @@ export default function HandoffView() {
         onRemove={(i) => patch({ manualTags: (project.manualTags ?? []).filter((_, k) => k !== i) })}
       />
 
-      <ExportPanel lyricsText={lyricsText} handoffText={handoffText} tags={usable} withheld={withheld} backing={backing} onBacking={(m) => patch({ backingMode: m })} />
+      <ExportPanel lyricsText={lyricsText} handoffText={handoffText} tags={usable} withheld={withheld} backing={backing} onBacking={(m) => patch({ backingMode: m })} spelling={spelling} onSpelling={(v) => patch({ tagSpelling: v })} />
 
       {lip.length === 0 ? (
         <p className="rounded border border-neutral-800 p-6 text-center text-neutral-400">No scene is marked LIP-SYNC. Claude marks close-up singing scenes when it writes the blueprint.</p>

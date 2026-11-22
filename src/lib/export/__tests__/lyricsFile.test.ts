@@ -45,3 +45,30 @@ describe('buildLyricsFile', () => {
     expect(JSON.stringify(lrc)).toBe(copy);
   });
 });
+
+describe('NARRATOR span', () => {
+  const lines: LrcLine[] = [
+    { t: 7, text: 'This October.' },
+    { t: 10, text: '(whisper)' },
+    { t: 14, text: 'One cabin.' },
+    { t: 21, text: 'Five friends.' },
+    { t: 30, text: 'Our singer starts' },
+  ];
+  it('drops the narrator\'s lines (backing ones too) and writes one tag in their place', () => {
+    const t = buildLyricsFile(lines, [{ t: 7, tag: 'NARRATOR', endT: 21, source: 'manual' }]);
+    expect(t).toBe('[00:07.00] [NARRATOR]\n[00:21.00] Five friends.\n[00:30.00] Our singer starts\n');
+    expect(t).not.toContain('BACKING');
+  });
+  it('treats the end as exclusive, so a line starting exactly there is sung', () => {
+    expect(buildLyricsFile(lines, [{ t: 7, tag: 'NARRATOR', endT: 21 }])).toContain('[00:21.00] Five friends.');
+  });
+  it('a NARRATOR tag without an end only marks a moment and removes nothing', () => {
+    const t = buildLyricsFile(lines, [{ t: 7, tag: 'NARRATOR' }], 'include');
+    expect(t).toContain('This October.');
+    expect(t).toContain('[00:07.00] [NARRATOR]');
+  });
+  it('does not touch lines outside the span, and still tags backing runs there', () => {
+    const t = buildLyricsFile([...lines, { t: 35, text: '(ooh)' }], [{ t: 7, tag: 'NARRATOR', endT: 21 }]);
+    expect(t).toContain('[00:35.00] [BACKING]');
+  });
+});

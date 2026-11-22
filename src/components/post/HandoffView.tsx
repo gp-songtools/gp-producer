@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { parseStopTags, parseVocalMap, stopTagSignature, usableTags, vocalOverlaps, type StopTag } from '../../lib/brief';
+import { narratorSuggestions, parseStopTags, parseVocalMap, stopTagSignature, usableTags, vocalOverlaps, type StopTag } from '../../lib/brief';
 import { downloadText } from '../../lib/download';
 import { buildHandoff } from '../../lib/export/handoff';
 import { HANDOFF_FILENAME } from '../../lib/export/bundle';
@@ -56,8 +56,9 @@ export default function HandoffView() {
         manualTags={manualTags}
         checked={checked}
         hasBrief={!!project.audioBrief.trim()}
+        suggestions={narratorSuggestions(vocalMap)}
         onCheck={(v) => patch({ stopTagsChecked: v ? sig : undefined })}
-        onAdd={(t) => patch({ manualTags: [...(project.manualTags ?? []), { t: t.t, tag: t.tag }].sort((a, b) => a.t - b.t) })}
+        onAdd={(t) => patch({ manualTags: [...(project.manualTags ?? []), { t: t.t, tag: t.tag, ...(t.endT !== undefined ? { endT: t.endT } : {}) }].sort((a, b) => a.t - b.t) })}
         onRemove={(i) => patch({ manualTags: (project.manualTags ?? []).filter((_, k) => k !== i) })}
       />
 

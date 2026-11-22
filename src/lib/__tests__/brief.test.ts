@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseClock, parseStopTags, parseTagInput, parseVocalMap, segmentLabel, stopTagSignature, usableTags, vocalOverlaps } from '../brief';
+import { inRanges, narratorRanges, narratorSuggestions, parseClock, parseStopTags, parseTagInput, parseVocalMap, segmentLabel, stopTagSignature, usableTags, vocalOverlaps } from '../brief';
 
 // Trimmed from a real Gemini answer for a spoken-word trailer parody.
 export const REAL_BRIEF = `# SONG OVERVIEW
@@ -100,5 +100,30 @@ describe('usableTags', () => {
   it('holds back brief tags until checked, always keeps the user\'s own, sorted by time', () => {
     expect(usableTags(brief, manual, false)).toEqual(manual);
     expect(usableTags(brief, manual, true).map((t) => t.t)).toEqual([10, 30]);
+  });
+});
+
+describe('narrator tag', () => {
+  it('takes an end time, only for NARRATOR, and the end must follow the start', () => {
+    expect(parseTagInput('00:07', '[narrator]', '00:21')).toEqual({ ok: true, tag: { t: 7, tag: 'NARRATOR', source: 'manual', endT: 21 } });
+    expect(parseTagInput('00:07', 'NARRATOR')).toEqual({ ok: true, tag: { t: 7, tag: 'NARRATOR', source: 'manual' } });
+    expect(parseTagInput('00:07', 'ECHO', '00:21')).toMatchObject({ ok: false, message: expect.stringMatching(/Only a NARRATOR/) });
+    expect(parseTagInput('00:21', 'NARRATOR', '00:07')).toMatchObject({ ok: false, message: expect.stringMatching(/after the start/) });
+    expect(parseTagInput('00:21', 'NARRATOR', '00:21')).toMatchObject({ ok: false });
+    expect(parseTagInput('00:07', 'NARRATOR', 'later')).toMatchObject({ ok: false, message: expect.stringMatching(/end time/) });
+  });
+
+  it('turns tags with an end into half-open spans, ignoring a bare NARRATOR tag and other tags', () => {
+    const tags = [{ t: 7, tag: 'NARRATOR', endT: 21 }, { t: 40, tag: 'NARRATOR' }, { t: 50, tag: 'ECHO', endT: 60 }];
+    const r = narratorRanges(tags);
+    expect(r).toEqual([{ start: 7, end: 21 }]);
+    expect(inRanges(7, r)).toBe(true);
+    expect(inRanges(20.99, r)).toBe(true);
+    expect(inRanges(21, r)).toBe(false);
+    expect(inRanges(6.9, r)).toBe(false);
+  });
+
+  it('suggests only the SPOKEN stretches of the vocal map', () => {
+    expect(narratorSuggestions(parseVocalMap(REAL_BRIEF))).toEqual([{ t: 7, endT: 21 }, { t: 161, endT: 168 }]);
   });
 });

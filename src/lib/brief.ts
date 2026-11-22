@@ -7,7 +7,13 @@ export interface StopTag {
   tag: string;
   /** From the Gemini brief (a draft until checked by ear) or typed in by the user (already checked). */
   source?: 'brief' | 'manual';
+  /** NARRATOR only: where the offscreen narration ends. Lyric lines starting in [t, endT) belong to the narrator. */
+  endT?: number;
 }
+
+/** Tag names offered in the UI. Any label can be typed; these are the ones with a meaning here. */
+export const NARRATOR = 'NARRATOR';
+export const KNOWN_TAGS = ['INSTRUMENTAL', 'ECHO', NARRATOR] as const;
 
 export interface VocalSegment {
   start: number;
@@ -85,14 +91,34 @@ export function vocalOverlaps(map: VocalSegment[], start: number, end: number): 
 
 export const segmentLabel = (s: VocalSegment): string => `${fmt(s.start)}–${fmt(s.end)} ${s.type}`;
 
-/** Validates a tag typed in by the user: a clock time and a label, with or without the brackets. */
-export function parseTagInput(time: string, label: string): { ok: true; tag: StopTag } | { ok: false; message: string } {
+/**
+ * Validates a tag typed in by the user: a clock time and a label, with or without the brackets. A NARRATOR tag may also
+ * carry an end time: the offscreen narrator speaks from `time` to `endTime`, and those lyric lines aren't lip-synced.
+ */
+export function parseTagInput(time: string, label: string, endTime = ''): { ok: true; tag: StopTag } | { ok: false; message: string } {
   const t = parseClock(time.trim());
   if (t === null) return { ok: false, message: 'Enter the time as MM:SS or MM:SS.xx, e.g. 01:14 or 01:14.50.' };
   const tag = label.trim().replace(/^\[+|\]+$/g, '').trim().toUpperCase();
-  if (!tag) return { ok: false, message: 'Enter a tag such as INSTRUMENTAL or ECHO.' };
+  if (!tag) return { ok: false, message: 'Enter a tag such as INSTRUMENTAL, ECHO or NARRATOR.' };
   if (/[\[\]\r\n]/.test(tag)) return { ok: false, message: 'Use a single word or phrase without brackets.' };
-  return { ok: true, tag: { t, tag, source: 'manual' } };
+  if (!endTime.trim()) return { ok: true, tag: { t, tag, source: 'manual' } };
+  if (tag !== NARRATOR) return { ok: false, message: 'Only a NARRATOR tag takes an end time.' };
+  const endT = parseClock(endTime.trim());
+  if (endT === null) return { ok: false, message: 'Enter the end time as MM:SS or MM:SS.xx.' };
+  if (endT <= t) return { ok: false, message: 'The end time must be after the start time.' };
+  return { ok: true, tag: { t, tag, source: 'manual', endT } };
+}
+
+/** Spans of offscreen narration: [start, end). A NARRATOR tag without an end time marks a single moment, not a span. */
+export function narratorRanges(tags: StopTag[]): { start: number; end: number }[] {
+  return tags.filter((g) => g.tag === NARRATOR && g.endT !== undefined && g.endT > g.t).map((g) => ({ start: g.t, end: g.endT! }));
+}
+
+export const inRanges = (t: number, ranges: { start: number; end: number }[]): boolean => ranges.some((r) => t >= r.start && t < r.end);
+
+/** The vocal map's SPOKEN stretches, offered as one-click NARRATOR candidates. They may be on-screen dialogue, so never applied automatically. */
+export function narratorSuggestions(map: VocalSegment[]): { t: number; endT: number }[] {
+  return map.filter((m) => m.type === 'SPOKEN' && m.end > m.start).map((m) => ({ t: m.start, endT: m.end }));
 }
 
 /** Tags that may go into the exported files: the user's own, plus the brief's once those are checked by ear. Time-sorted. */

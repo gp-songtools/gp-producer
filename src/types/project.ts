@@ -28,7 +28,7 @@ export interface Project {
   /** Signature of the singing stop tags the user has checked by ear (see `stopTagSignature`). Stale once the tags change. */
   stopTagsChecked?: string;
   /** Stop tags typed in by the user (they count as checked by ear). */
-  manualTags?: { t: number; tag: string }[];
+  manualTags?: { t: number; tag: string; endT?: number }[];
   /** How backing-vocal lines (wholly in parentheses) appear in lyrics-for-lipsync.txt. Default: a no-singing tag in their place. */
   backingMode?: BackingMode;
   treatment: Treatment | null;

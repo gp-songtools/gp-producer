@@ -1,6 +1,6 @@
 import type { LrcLine } from '../../types/blueprint';
 import type { BackingMode } from '../../types/project';
-import type { StopTag } from '../brief';
+import { inRanges, narratorRanges, type StopTag } from '../brief';
 import { fmtPrecise } from '../ledger/format';
 import { isBackingVocal } from '../lrc';
 
@@ -23,12 +23,15 @@ interface Entry {
  * `lyrics-for-lipsync.txt`: the whole song in `.lrc` style. A timed line counts as singing; a bracketed tag counts as no
  * singing. The lip-sync step redraws one face per shot, so it can't give a second vocalist their own mouth: backing-vocal
  * lines (wholly in parentheses) would make the lead mouth them. By default a run of them becomes one no-singing tag, so
- * singing doesn't carry on from the previous line.
+ * singing doesn't carry on from the previous line. Lines inside a NARRATOR span (offscreen narration) are dropped and the span's
+ * tag stands in for them, so the on-screen face isn't lip-synced to the narrator.
  */
 export function buildLyricsFile(lrc: LrcLine[], tags: StopTag[], backing: BackingMode = 'tag'): string {
   const entries: Entry[] = [];
   let inBackingRun = false;
+  const narrated = narratorRanges(tags);
   for (const l of [...lrc].sort((a, b) => a.t - b.t)) {
+    if (inRanges(l.t, narrated)) continue;
     if (!isBackingVocal(l.text)) {
       entries.push({ t: l.t, rank: 0, text: l.text });
       inBackingRun = false;

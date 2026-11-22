@@ -129,7 +129,7 @@ describe('errors and retries', () => {
   it.each([
     [400, 'API key not valid. Please pass a valid API key.', 'INVALID_ARGUMENT', /rejected the Gemini API key/],
     [403, 'The caller does not have permission', 'PERMISSION_DENIED', /denied access: The caller does not have permission/],
-    [404, 'models/x is not found for API version v1beta', 'NOT_FOUND', /doesn't know the model "gemini-nano-banana-2.1".*Test & list models/],
+    [404, 'models/x is not found for API version v1beta', 'NOT_FOUND', /doesn't know the model "gemini-nano-banana-2.1".*Test key & list models/],
     [400, 'Something else is wrong', 'INVALID_ARGUMENT', /Gemini error \(INVALID_ARGUMENT\): Something else is wrong/],
   ])('maps HTTP %i to a friendly message without retrying', async (status, message, apiStatus, re) => {
     const f = mockFetch([gErr(status, message, apiStatus)]);
@@ -233,5 +233,79 @@ describe('listModels', () => {
   it('surfaces a bad key as a friendly error', async () => {
     const f = mockFetch([gErr(400, 'API key not valid. Please pass a valid API key.')]);
     await expect(listModels({ apiKey: 'bad', fetchImpl: f.impl, sleep: noSleep })).rejects.toThrow(/rejected the Gemini API key/);
+  });
+});
+
+describe('audio brief', () => {
+  const brief = async () => (await import('../gemini'));
+  const textOk = (text: string, finish = 'STOP') => json({ candidates: [{ content: { parts: [{ text }] }, finishReason: finish }] });
+  const AUDIO = 'QUJD'; // "ABC"
+  const req = (f: ReturnType<typeof mockFetch>, over = {}) => ({ apiKey: 'AIza-secret', model: 'gemini-2.5-pro', prompt: 'Listen and write', audio: { mimeType: 'audio/mpeg', data: AUDIO }, fetchImpl: f.impl, sleep: noSleep, ...over });
+
+  it('sends the prompt and the audio as inline data, with the key in a header only', async () => {
+    const { generateAudioBrief } = await brief();
+    const f = mockFetch([textOk('# SONG OVERVIEW\n- Total length: 03:06')]);
+    const out = await generateAudioBrief(req(f));
+    expect(out).toBe('# SONG OVERVIEW\n- Total length: 03:06');
+    const c = f.calls[0];
+    expect(c.url).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent');
+    expect((c.init.headers as Record<string, string>)['x-goog-api-key']).toBe('AIza-secret');
+    expect(c.url).not.toContain('AIza');
+    expect(c.body.contents[0].parts).toEqual([{ text: 'Listen and write' }, { inlineData: { mimeType: 'audio/mpeg', data: AUDIO } }]);
+    expect(c.body.generationConfig.maxOutputTokens).toBeGreaterThan(8000);
+    expect(c.body.generationConfig.responseModalities).toBeUndefined();
+  });
+
+  it('removes the outer markdown code fence Gemini was asked to add, but only the outer one', async () => {
+    const { stripOuterFence } = await brief();
+    expect(stripOuterFence('```markdown\n# A\n| x |\n```')).toBe('# A\n| x |');
+    expect(stripOuterFence('```\n# A\n```\n')).toBe('# A');
+    expect(stripOuterFence('# A\n```js\ncode\n```')).toBe('# A\n```js\ncode\n```');
+    expect(stripOuterFence('  plain  ')).toBe('plain');
+  });
+
+  it('skips thought text and joins text parts', async () => {
+    const { parseBriefResponse } = await brief();
+    expect(parseBriefResponse({ candidates: [{ content: { parts: [{ text: 'thinking', thought: true }, { text: 'A' }, { text: 'B' }] }, finishReason: 'STOP' }] })).toBe('AB');
+  });
+
+  it('explains a block, an empty reply and a truncated reply', async () => {
+    const { parseBriefResponse } = await brief();
+    expect(() => parseBriefResponse({ promptFeedback: { blockReason: 'OTHER' } })).toThrow(/blocked this request \(OTHER\)/);
+    expect(() => parseBriefResponse({ candidates: [{ content: { parts: [] }, finishReason: 'STOP' }] })).toThrow(/returned no text/);
+    expect(() => parseBriefResponse({ candidates: [{ content: { parts: [{ text: 'partial' }] }, finishReason: 'MAX_TOKENS' }] })).toThrow(/ran out of output space/);
+    expect(() => parseBriefResponse({ candidates: [{ finishReason: 'PROHIBITED_CONTENT' }] })).toThrow(/declined/);
+  });
+
+  it('rejects audio that is too large before sending anything', async () => {
+    const { generateAudioBrief, MAX_AUDIO_BYTES } = await brief();
+    const f = mockFetch([]);
+    const e = await generateAudioBrief(req(f, { audio: { mimeType: 'audio/mpeg', data: 'A'.repeat(Math.ceil(MAX_AUDIO_BYTES * 1.4)) } })).catch((x) => x);
+    expect(e).toBeInstanceOf(ApiError);
+    expect(e.kind).toBe('too_large');
+    expect(f.calls).toHaveLength(0);
+  });
+
+  it('surfaces an unknown model with the Settings hint, and a bad key', async () => {
+    const { generateAudioBrief } = await brief();
+    const a = await generateAudioBrief(req(mockFetch([gErr(404, 'not found', 'NOT_FOUND')]))).catch((x) => x);
+    expect(a.message).toMatch(/doesn't know the model "gemini-2.5-pro".*Settings/);
+    const b = await generateAudioBrief(req(mockFetch([gErr(400, 'API key not valid. Please pass a valid API key.')]))).catch((x) => x);
+    expect(b.message).toMatch(/rejected the Gemini API key/);
+  });
+
+  it('retries a 503 and uses a long timeout', async () => {
+    const { generateAudioBrief } = await brief();
+    const f = mockFetch([gErr(503, 'overloaded', 'UNAVAILABLE'), textOk('# OK')]);
+    expect(await generateAudioBrief(req(f))).toBe('# OK');
+    expect(f.calls).toHaveLength(2);
+  });
+
+  it('picks a MIME type from the browser, or from the extension', async () => {
+    const { audioMimeType } = await brief();
+    expect(audioMimeType({ name: 'a.mp3', type: 'audio/mpeg' })).toBe('audio/mpeg');
+    expect(audioMimeType({ name: 'a.WAV', type: '' })).toBe('audio/wav');
+    expect(audioMimeType({ name: 'a.flac', type: '' })).toBe('audio/flac');
+    expect(audioMimeType({ name: 'a.xyz', type: '' })).toBe('audio/mpeg');
   });
 });

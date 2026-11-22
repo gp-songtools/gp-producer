@@ -6,6 +6,8 @@ interface AudioState {
   projectId: string | null;
   url: string | null;
   name: string | null;
+  /** The file itself, in memory only; used for scrubbing and, if you choose, for the Gemini audio brief. */
+  file: File | null;
   duration: number | null;
   load: (projectId: string, file: File) => void;
   setDuration: (d: number) => void;
@@ -16,17 +18,18 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   projectId: null,
   url: null,
   name: null,
+  file: null,
   duration: null,
   load: (projectId, file) => {
     const old = get().url;
     if (old) URL.revokeObjectURL(old);
-    set({ projectId, url: URL.createObjectURL(file), name: file.name, duration: null });
+    set({ projectId, url: URL.createObjectURL(file), name: file.name, file, duration: null });
   },
   setDuration: (duration) => set({ duration }),
   clear: () => {
     const old = get().url;
     if (old) URL.revokeObjectURL(old);
-    set({ projectId: null, url: null, name: null, duration: null });
+    set({ projectId: null, url: null, name: null, file: null, duration: null });
   },
 }));
 

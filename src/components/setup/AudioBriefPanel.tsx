@@ -1,23 +1,89 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ApiError, isAbort } from '../../lib/api/errors';
+import { audioMimeType, generateAudioBrief, MAX_AUDIO_BYTES } from '../../lib/api/gemini';
+import { blobToBase64 } from '../../lib/image';
+import { STORAGE_KEYS, storageGet, storageSet } from '../../lib/keys';
 import { extractBriefPrompt, fillBriefPrompt } from '../../lib/setup';
+import { useAudioStore } from '../../store/audioStore';
 import { useProjectStore } from '../../store/projectStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import Card, { fieldInput } from '../ui/Card';
 import CopyButton from '../ui/CopyButton';
+
+const CONSENT =
+  "This sends your audio file to Google's Gemini API using your key, so Gemini can listen to the song and write the brief. Nothing else is uploaded, and the app doesn't keep the audio. Continue?";
 
 export default function AudioBriefPanel() {
   const brief = useProjectStore((s) => s.project!.audioBrief);
   const lines = useProjectStore((s) => s.project!.lrcLines);
   const patch = useProjectStore((s) => s.patch);
+  const projectId = useProjectStore((s) => s.project!.id);
+  const audio = useAudioStore();
+  const geminiKey = useSettingsStore((s) => s.geminiKey);
+  const briefModel = useSettingsStore((s) => s.settings.briefModel);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
+  const file = audio.projectId === projectId ? audio.file : null;
   const prompt = useMemo(() => extractBriefPrompt(), []);
   const filled = useMemo(() => (prompt ? fillBriefPrompt(prompt, lines) : ''), [prompt, lines]);
+
+  const generate = async () => {
+    if (!file || !filled) return;
+    if (file.size > MAX_AUDIO_BYTES) return setError(`That file is ${(file.size / 1048576).toFixed(0)} MB; the limit for sending it directly is ${MAX_AUDIO_BYTES / 1048576} MB. Use a smaller export (a 128 kbps MP3 is about 1 MB per minute), or paste the brief from the Gemini app.`);
+    if (storageGet(STORAGE_KEYS.audioConsent) !== '1') {
+      if (!window.confirm(CONSENT)) return;
+      storageSet(STORAGE_KEYS.audioConsent, '1');
+    }
+    if (brief.trim() && !window.confirm('Replace the brief you already have?')) return;
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    try {
+      const text = await generateAudioBrief({ apiKey: geminiKey, model: briefModel, prompt: filled, audio: { mimeType: audioMimeType(file), data: await blobToBase64(file) }, signal: ctrl.signal });
+      if (ctrl.signal.aborted) return;
+      patch({ audioBrief: text });
+      setNote(`Written by ${briefModel}. Read it over: Gemini can be a few seconds off on timestamps, and the singing stop tags are drafts until you check them by ear.`);
+    } catch (e) {
+      if (isAbort(e)) return;
+      setError(e instanceof ApiError ? e.message : `Something went wrong: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      abortRef.current = null;
+      setBusy(false);
+    }
+  };
 
   return (
     <Card title="Gemini audio brief" optional>
       <p className="text-xs text-neutral-400">
         Claude can't hear the song. A brief from Gemini describing sections, energy, instruments and where the singing stops
-        helps with pacing and lip-sync. Attach your song in the Gemini app, paste this prompt, then paste its answer below.
+        helps with pacing and lip-sync. Let the app ask Gemini for you with your key, or attach your song in the Gemini app yourself, paste this prompt, and paste its answer below.
       </p>
+      {prompt && (
+        <div className="mt-3 rounded border border-neutral-800 bg-neutral-950/60 p-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void generate()}
+              disabled={busy || !geminiKey || !file}
+              className="rounded border border-amber-400 bg-amber-400 px-3 py-1.5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {busy ? 'Gemini is listening…' : 'Generate with Gemini'}
+            </button>
+            {busy && <button type="button" onClick={() => abortRef.current?.abort()} className="rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800">Cancel</button>}
+            <span className="text-xs text-neutral-500">
+              {!geminiKey ? 'Add a Gemini key in Settings.' : !file ? 'Add your song under "Local audio" first.' : busy ? 'This can take a minute or two.' : `Sends ${file.name} to Gemini (${briefModel}).`}
+            </span>
+          </div>
+          {error && <p role="alert" className="mt-2 text-xs text-red-300">{error}</p>}
+          {note && <p role="status" className="mt-2 text-xs text-emerald-300">{note}</p>}
+        </div>
+      )}
       {prompt && (
         <div className="mt-2">
           <div className="flex flex-wrap items-center gap-2">

@@ -49,7 +49,7 @@ export default function LedgerToolbar(p: ToolbarProps) {
     <div className="no-print space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         {!busy ? (
-          <button type="button" disabled={!p.canGenerate} onClick={p.onGenerate} className={`${btn} border-amber-400 bg-amber-400 font-medium text-black`}>
+          <button type="button" disabled={!p.canGenerate} onClick={p.onGenerate} className={`${btn} border-accent bg-accent font-medium text-accent-fg`}>
             {hasBlueprint ? 'Regenerate blueprint' : 'Generate blueprint'}
           </button>
         ) : (

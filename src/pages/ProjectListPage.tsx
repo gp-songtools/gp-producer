@@ -81,7 +81,7 @@ export default function ProjectListPage() {
           <button type="button" onClick={() => fileRef.current?.click()} disabled={busy === 'import'} className="rounded border border-neutral-700 px-3 py-2 text-sm hover:bg-neutral-900 disabled:opacity-40">
             {busy === 'import' ? 'Importing…' : 'Import project…'}
           </button>
-          <button onClick={create} className="rounded bg-amber-400 px-3 py-2 text-sm font-medium text-black">New project</button>
+          <button onClick={create} className="rounded bg-accent px-3 py-2 text-sm font-medium text-accent-fg">New project</button>
         </div>
       </div>
       {importError && (
@@ -96,7 +96,7 @@ export default function ProjectListPage() {
       {projects?.length === 0 && (
         <div className="mt-6 text-neutral-400">
           <p>No projects yet. Create one to start with a song's lyrics and runtime.</p>
-          <p className="mt-2 text-sm">New here? Read the <Link to="/help/quick-start" className="text-amber-300 underline">quick start</Link> or the <Link to="/help" className="text-amber-300 underline">full guide</Link>.</p>
+          <p className="mt-2 text-sm">New here? Read the <Link to="/help/quick-start" className="text-accent underline">quick start</Link> or the <Link to="/help" className="text-accent underline">full guide</Link>.</p>
         </div>
       )}
 
@@ -104,7 +104,7 @@ export default function ProjectListPage() {
         {projects?.map((p) => (
           <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
             <div className="min-w-0">
-              <Link to={`/p/${p.id}/setup`} className="font-medium hover:text-amber-400">{p.name}</Link>
+              <Link to={`/p/${p.id}/setup`} className="font-medium hover:text-accent">{p.name}</Link>
               <div className="text-xs text-neutral-500">Edited {new Date(p.updatedAt).toLocaleString()}</div>
             </div>
             <div className="flex gap-1">

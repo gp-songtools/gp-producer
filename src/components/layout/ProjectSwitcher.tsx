@@ -43,7 +43,7 @@ export default function ProjectSwitcher({ projectId }: { projectId: string }) {
         value={project?.name ?? ''}
         onChange={(e) => patch({ name: e.target.value })}
         onBlur={(e) => !e.target.value.trim() && patch({ name: 'Untitled project' })}
-        className="min-w-[10rem] flex-1 rounded border border-transparent bg-transparent px-2 py-1 text-sm font-medium hover:border-neutral-700 focus:border-amber-400 focus:outline-none"
+        className="min-w-[10rem] flex-1 rounded border border-transparent bg-transparent px-2 py-1 text-sm font-medium hover:border-neutral-700 focus:border-accent focus:outline-none"
       />
       <button onClick={create} className="rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800">New project</button>
     </div>

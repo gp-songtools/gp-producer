@@ -97,7 +97,7 @@ export default function ReviseDrawer({ scene, anchors, projectId, onClose }: { s
               disabled={asking || !hasAnthropic || !text.trim()}
               onClick={() => { setApplied(null); void ask(text); }}
               title={hasAnthropic ? undefined : 'Add an Anthropic API key in Settings'}
-              className="rounded border border-amber-400 bg-amber-400 px-3 py-1.5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded border border-accent bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg disabled:cursor-not-allowed disabled:opacity-40"
             >
               {asking ? 'Asking Claude…' : result ? 'Ask again' : 'Ask Claude to revise'}
             </button>
@@ -127,7 +127,7 @@ export default function ReviseDrawer({ scene, anchors, projectId, onClose }: { s
             <div><h4 className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Keyframe prompt</h4><DiffText before={scene.keyframe_prompt} after={proposal.keyframe_prompt} /></div>
 
             <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={rerender} onChange={(e) => setRerender(e.target.checked)} disabled={!hasGemini} className="mt-0.5 h-4 w-4 accent-amber-400" />
+              <input type="checkbox" checked={rerender} onChange={(e) => setRerender(e.target.checked)} disabled={!hasGemini} className="mt-0.5 h-4 w-4 accent-accent" />
               <span>
                 Re-render the storyboard frame after accepting
                 <span className="block text-xs text-neutral-500">{hasGemini ? 'Uses the Workhorse model; the current frame stays in the frame history.' : 'Add a Gemini key in Settings to enable.'}</span>

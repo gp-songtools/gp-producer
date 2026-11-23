@@ -5,7 +5,7 @@ import { formatBytes, getStorageInfo, requestPersistence, type StorageInfo } fro
 import { useSettingsStore } from '../../store/settingsStore';
 import GeminiModels from './GeminiModels';
 
-const input = 'w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-amber-400';
+const input = 'w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-accent';
 const label = 'block text-xs font-medium text-neutral-400 mb-1';
 
 function KeyField({ id, text, value, onSave }: { id: string; text: string; value: string; onSave: (v: string) => void }) {

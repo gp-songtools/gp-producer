@@ -61,7 +61,7 @@ export default function StopTagsPanel({
             {briefTags.map((t, i) => <li key={i} className="rounded border border-neutral-700 px-1.5 py-0.5 text-neutral-300">[{fmtPrecise(t.t)}] [{t.tag}]</li>)}
           </ul>
           <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm">
-            <input type="checkbox" checked={checked} onChange={(e) => onCheck(e.target.checked)} className="h-4 w-4 accent-amber-400" />
+            <input type="checkbox" checked={checked} onChange={(e) => onCheck(e.target.checked)} className="h-4 w-4 accent-accent" />
             I've checked these by ear
           </label>
         </>

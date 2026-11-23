@@ -53,12 +53,13 @@ Paste the text or click **Upload .lrc**. It understands lines with several times
 - Lines wholly in parentheses, like `(ooh)`, are treated as **backing vocals**.
 - The app reads `.lrc` only. If your transcription tool gives you SRT, VTT or JSON, convert it to `.lrc` first.
 
-**Timed lyrics from a Song Spec.** The GP Song Tools share a *Song Spec*, a `.songspec.md` file with a section per tool. If you aligned your lyrics in Framecut, its **Timed lyrics** section is already `.lrc`. Under the lyrics box, use **Load timed lyrics from Song Spec**:
+**From the song spec.** The GP Song Tools share a *song spec*, a `.songspec.md` file with a section per tool, kept in this browser. The **Song spec** panel above the tabs (closed until you open it) shows what it holds and lets you **Open file…**, **Download**, **Copy** or start a **New song**. When the song spec has something this project can use, a **From the song spec** box appears at the top of Setup. Using any of it is optional:
 
-- **Open .songspec.md…** reads a Song Spec file from your computer.
-- **Use shared Song Spec** reads the copy the GP Song Tools keep in this browser. It is available only when that copy has Timed lyrics.
+- **Use as lyrics** puts the song spec's Timed lyrics (written by Framecut, already `.lrc`) in the lyrics box. If the project already has different lyrics, the app asks before replacing them. If the song spec has lyrics but no timed lyrics, the box says so; time them in Framecut and press **Save Timed Lyrics to Song Spec**.
+- **Use as runtime** sets the total runtime from the song spec's Duration.
+- **Use as project name** renames the project to the song spec's Title.
 
-If the project already has lyrics, the app asks before replacing them. It tells you which tool wrote the lyrics. If the spec has no Timed lyrics, it says so; add them in Framecut first. The Song Spec is only read here; nothing is written back from the Setup tab.
+Each row shows **In use** once the project matches it, and a line at the bottom lists what the project uses from the song spec. The song spec is only read here; nothing is written back from the Setup tab.
 
 ### Runtime
 
@@ -159,14 +160,15 @@ If Gemini refuses an image ("wouldn't make this image"), try again, reword the p
 
 The Production tab shows **one scene at a time**, so you can work through Google Flow without losing your place. Use **← Previous**, **Next →**, the dropdown, or the **← →** arrow keys. The dropdown marks finished scenes with ✓ and shows how many are complete overall.
 
-### Save the video sequence to the Song Spec
+### Save the video sequence to the song spec
 
-The **Save video sequence to Song Spec** panel at the top of the Production tab lists one line per scene, its start time and its clip name, for example `[00:26.00] 03_Verse1A_26-39.mp4`. It writes them to the **Video sequence** section of the Song Spec and changes nothing else in the file.
+The **Video sequence** line at the top of the Production tab says whether the song spec has your video sequence: one line per scene, its start time and its clip name, for example `[00:26.00] 03_Verse1A_26-39.mp4`. It reads "Up to date", "Out of date: your scenes changed", or "Not in the song spec yet".
 
-- **Update shared Song Spec** saves into the copy the GP Song Tools share in this browser. It is available only when that copy exists. If the section was edited by hand, the app asks before replacing it.
-- **Download .songspec.md** gives you a file instead. It starts from the spec you opened on the Setup tab this session, otherwise the shared copy, otherwise a new spec.
+- **Save video sequence to song spec** writes the lines to the **Video sequence** section of the shared song spec and changes nothing else. If the section was edited by hand or written by another tool, the app asks first. It works even when there is no song spec yet; it creates one.
+- **Preview the lines** shows exactly what will be written.
+- To keep a file, use **Download** in the **Song spec** panel above the tabs.
 
-The buttons are off until the project has scenes.
+The button is off until the project has scenes.
 
 ### Producing a scene in Google Flow
 

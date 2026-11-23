@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, Outlet, useParams } from 'react-router-dom';
 import ProjectSwitcher from '../components/layout/ProjectSwitcher';
+import SongSpecShared from '../components/layout/SongSpecShared';
 import TabBar from '../components/layout/TabBar';
 import { useImageStore } from '../store/imageStore';
 import { useProjectStore } from '../store/projectStore';
@@ -39,7 +40,10 @@ export default function ProjectLayout() {
     <div>
       <ProjectSwitcher projectId={projectId} />
       <TabBar />
-      <div className="p-4">{project?.id === projectId ? <Outlet /> : <p className="text-neutral-500">Loading…</p>}</div>
+      <div className="p-4">
+        <SongSpecShared />
+        {project?.id === projectId ? <Outlet /> : <p className="text-neutral-500">Loading…</p>}
+      </div>
     </div>
   );
 }

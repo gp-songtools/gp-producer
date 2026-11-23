@@ -94,7 +94,10 @@ export default function ProjectListPage() {
       {error && <p role="alert" className="mt-4 rounded border border-red-700/50 bg-red-950/40 p-3 text-sm text-red-200">{error}</p>}
       {projects === null && !error && <p className="mt-4 text-neutral-500">Loading…</p>}
       {projects?.length === 0 && (
-        <p className="mt-6 text-neutral-400">No projects yet. Create one to start with a song's lyrics and runtime.</p>
+        <div className="mt-6 text-neutral-400">
+          <p>No projects yet. Create one to start with a song's lyrics and runtime.</p>
+          <p className="mt-2 text-sm">New here? Read the <Link to="/help/quick-start" className="text-amber-300 underline">quick start</Link> or the <Link to="/help" className="text-amber-300 underline">full guide</Link>.</p>
+        </div>
       )}
 
       <ul className="mt-4 divide-y divide-neutral-800 rounded border border-neutral-800">

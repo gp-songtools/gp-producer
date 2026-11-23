@@ -30,12 +30,15 @@ export default function AppShell() {
         <Link to="/" className="font-semibold tracking-tight">
           <span className="text-amber-400">▶</span> Music Video Director
         </Link>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="rounded border border-neutral-700 px-3 py-1 text-sm hover:bg-neutral-900"
-        >
-          Settings
-        </button>
+        <div className="flex items-center gap-2">
+          <Link to="/help" className="rounded border border-neutral-700 px-3 py-1 text-sm hover:bg-neutral-900">Help</Link>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="rounded border border-neutral-700 px-3 py-1 text-sm hover:bg-neutral-900"
+          >
+            Settings
+          </button>
+        </div>
       </header>
       <main className="flex-1">
         <Outlet />

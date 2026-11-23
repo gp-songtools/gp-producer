@@ -4,6 +4,17 @@
 body { @apply bg-neutral-950 text-neutral-100 antialiased; }
 
 @media print {
+  @page { margin: 12mm; }
   .no-print { display: none !important; }
-  body { background: #fff; color: #000; }
+  html, body { background: #fff !important; color: #000 !important; }
+  /* The app is dark on screen; on paper drop the dark fills and light text. Images and .print-keep (the timeline bar) keep their colours. */
+  body *:not(img):not(.print-keep):not(.print-keep *) {
+    background: transparent !important;
+    color: #111 !important;
+    border-color: #aaa !important;
+    box-shadow: none !important;
+  }
+  .print-keep { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  a { text-decoration: none; }
+  main { overflow: visible; }
 }

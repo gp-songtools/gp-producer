@@ -67,3 +67,28 @@ describe('buildHandoff', () => {
     expect(t).toContain('(none in this scene)');
   });
 });
+
+describe('NARRATOR span in the handoff', () => {
+  const nl: LrcLine[] = [{ t: 193, text: 'Narrator words' }, { t: 197.4, text: 'Sung line' }];
+  const span = [{ t: 190, tag: 'NARRATOR', endT: 196, source: 'manual' as const }];
+  const scene14 = mk(14, 192, 204, { section: 'Chorus 2', lip_sync: { vocal_start_sec: 193, vocal_end_sec: 201.3 } });
+
+  it('flags narrated lines in the block, and adds a NARRATOR tag at the scene start when the span began earlier', () => {
+    const b = lyricBlock(nl, span, 192, 204);
+    expect(b.find((i) => i.text === 'Narrator words')?.narrator).toBe(true);
+    expect(b.find((i) => i.text === 'Sung line')?.narrator).toBeUndefined();
+    expect(b.filter((i) => i.kind === 'tag').map((i) => [i.t, i.text])).toEqual([[192, 'NARRATOR']]);
+  });
+
+  it('omits narrated lines from the text, keeps the tag, and says the narrator overlaps the vocal window', () => {
+    const t = buildHandoff({ scenes: [scene14], lrc: nl, tags: span, withheld: 0 });
+    expect(t).not.toContain('Narrator words');
+    expect(t).toContain('[03:12.00] [NARRATOR]\n[03:17.40] Sung line');
+    expect(t).toMatch(/Offscreen narrator overlaps the vocal window \(03:10.00 - 03:16.00\): do not lip-sync that part/);
+  });
+
+  it('does not warn when the narrator is outside the vocal window', () => {
+    const t = buildHandoff({ scenes: [scene14], lrc: nl, tags: [{ t: 100, tag: 'NARRATOR', endT: 110 }], withheld: 0 });
+    expect(t).not.toContain('Offscreen narrator');
+  });
+});

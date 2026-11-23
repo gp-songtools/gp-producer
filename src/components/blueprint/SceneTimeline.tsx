@@ -11,8 +11,8 @@ export function jumpToScene(n: number) {
 export default function SceneTimeline({ scenes, runtimeSec, byScene }: { scenes: Scene[]; runtimeSec: number; byScene: Map<number, Issue[]> }) {
   const sorted = [...scenes].sort((a, b) => a.start_sec - b.start_sec);
   return (
-    <div className="no-print" aria-label="Timeline">
-      <div className="relative flex h-9 overflow-hidden rounded border border-neutral-800 bg-neutral-950">
+    <div aria-label="Timeline" className="print:mb-4">
+      <div className="print-keep relative flex h-9 overflow-hidden rounded border border-neutral-800 bg-neutral-950">
         {sorted.map((s) => {
           const bad = byScene.get(s.scene)?.some((i) => i.severity === 'error');
           const ext = s.extension_sec ?? 0;

@@ -6,12 +6,14 @@ import SetupPage from './pages/SetupPage';
 import BlueprintPage from './pages/BlueprintPage';
 import ProductionPage from './pages/ProductionPage';
 import PostPage from './pages/PostPage';
+import HelpPage from './pages/HelpPage';
 
 export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<ProjectListPage />} />
+        <Route path="help/:section?" element={<HelpPage />} />
         <Route path="p/:projectId" element={<ProjectLayout />}>
           <Route index element={<Navigate to="setup" replace />} />
           <Route path="setup" element={<SetupPage />} />

@@ -1,5 +1,5 @@
 import type { LrcLine, Scene } from '../../types/blueprint';
-import type { StopTag } from '../brief';
+import { inRanges, narratorRanges, NARRATOR, type StopTag } from '../brief';
 import { buildFileTag } from '../ledger/fileTag';
 import { fmt, fmtPrecise } from '../ledger/format';
 import { backingLinesInWindow, LIPSYNC_REMINDERS } from '../ledger/lipsync';
@@ -14,14 +14,25 @@ export interface BlockItem {
   backing?: boolean;
   /** Tag only: where it came from. */
   source?: StopTag['source'];
+  /** Lyric only: inside a NARRATOR span, so it is offscreen narration and not lip-synced. */
+  narrator?: boolean;
 }
 
-/** The scene's lyric lines and singing-stop tags in time order. Lyrics start in [start, end); a tag may sit exactly on the cut. */
+/**
+ * The scene's lyric lines and singing-stop tags in time order. Lyrics start in [start, end); a tag may sit exactly on the cut.
+ * Lines inside a NARRATOR span are flagged, and a span that began before the scene gets a NARRATOR tag at the scene start.
+ */
 export function lyricBlock(lrc: LrcLine[], tags: StopTag[], start: number, end: number): BlockItem[] {
+  const spans = narratorRanges(tags);
   const items: BlockItem[] = [
-    ...lrc.filter((l) => l.t >= start && l.t < end).map((l): BlockItem => ({ t: l.t, kind: 'lyric', text: l.text, ...(isBackingVocal(l.text) ? { backing: true } : {}) })),
+    ...lrc
+      .filter((l) => l.t >= start && l.t < end)
+      .map((l): BlockItem => ({ t: l.t, kind: 'lyric', text: l.text, ...(isBackingVocal(l.text) ? { backing: true } : {}), ...(inRanges(l.t, spans) ? { narrator: true } : {}) })),
     ...tags.filter((g) => g.t >= start && g.t <= end).map((g): BlockItem => ({ t: g.t, kind: 'tag', text: g.tag, ...(g.source ? { source: g.source } : {}) })),
   ];
+  for (const g of tags) {
+    if (g.tag === NARRATOR && g.endT !== undefined && g.t < start && g.endT > start) items.push({ t: start, kind: 'tag', text: NARRATOR, ...(g.source ? { source: g.source } : {}) });
+  }
   // Stable for ties: lyrics before a tag at the same instant.
   return items.sort((a, b) => a.t - b.t || (a.kind === b.kind ? 0 : a.kind === 'lyric' ? -1 : 1));
 }
@@ -68,8 +79,12 @@ export function buildHandoff(i: HandoffInput): string {
       'Lyrics:',
     );
     const block = lyricBlock(i.lrc, i.tags, s.start_sec, s.end_sec);
-    out.push(...(block.length ? block.map(blockLine) : ['(none in this scene)']));
-    const backing = backingLinesInWindow(i.lrc, ls);
+    const sung = block.filter((b) => !b.narrator);
+    out.push(...(sung.length ? sung.map(blockLine) : ['(none in this scene)']));
+    const spans = narratorRanges(i.tags).filter((r) => r.start < ls.vocal_end_sec && r.end > ls.vocal_start_sec);
+    if (spans.length) out.push(`Offscreen narrator overlaps the vocal window (${spans.map((r) => `${fmtPrecise(r.start)} - ${fmtPrecise(r.end)}`).join(', ')}): do not lip-sync that part.`);
+    const spansAll = narratorRanges(i.tags);
+    const backing = backingLinesInWindow(i.lrc, ls).filter((l) => !inRanges(l.t, spansAll));
     if (backing.length) out.push(`Backing vocal in the vocal window: ${backing.map((l) => l.text).join(' ')}. The on-screen singer shouldn't mouth this.`);
     out.push('Framing:', ...LIPSYNC_REMINDERS.map((r) => `- ${r}`));
     if (ls.camera_note) out.push(`- ${ls.camera_note}`);

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { segmentLabel, type VocalOverlap } from '../../lib/brief';
+import { inRanges, narratorRanges, segmentLabel, type VocalOverlap } from '../../lib/brief';
 import { lyricBlock } from '../../lib/export/handoff';
 import { buildFileTag } from '../../lib/ledger/fileTag';
 import { fmt, fmtPrecise } from '../../lib/ledger/format';
@@ -12,7 +12,9 @@ import LyricBlock from './LyricBlock';
 export default function LipSyncSceneRow({ scene: s, projectId, lrc, tags, tagsChecked, overlaps }: { scene: Scene; projectId: string; lrc: LrcLine[]; tags: StopTag[]; tagsChecked: boolean; overlaps: VocalOverlap[] }) {
   const ls = s.lip_sync!;
   const tag = buildFileTag(s);
-  const backing = backingLinesInWindow(lrc, ls);
+  const spans = narratorRanges(tags);
+  const narratedInWindow = spans.filter((r) => r.start < ls.vocal_end_sec && r.end > ls.vocal_start_sec);
+  const backing = backingLinesInWindow(lrc, ls).filter((l) => !inRanges(l.t, spans));
   const risky = overlaps.filter((o) => o.risky);
 
   return (
@@ -39,6 +41,11 @@ export default function LipSyncSceneRow({ scene: s, projectId, lrc, tags, tagsCh
 
       {backing.length > 0 && (
         <p className="mt-2 text-xs text-amber-300">Backing vocal in this window: {backing.map((l) => l.text).join(' ')}. The on-screen singer shouldn't mouth it.</p>
+      )}
+      {narratedInWindow.length > 0 && (
+        <p role="note" className="mt-2 text-xs text-sky-300" data-narrator-overlap>
+          An offscreen narrator speaks during part of this vocal window ({narratedInWindow.map((r) => `${fmtPrecise(r.start)}–${fmtPrecise(r.end)}`).join(', ')}). That part is left out of the lyrics file so it isn't lip-synced.
+        </p>
       )}
       {overlaps.length > 0 && (
         <p className="mt-2 text-xs text-neutral-400" data-vocal-map>

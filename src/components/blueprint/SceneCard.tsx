@@ -32,7 +32,7 @@ export default function SceneCard({ scene: s, anchors, lrc, issues, projectId, a
     <article
       id={sceneAnchorId(s.scene)}
       data-scene={s.scene}
-      className={`scroll-mt-4 rounded-lg border bg-neutral-900/50 p-4 print:break-inside-avoid ${hasError ? 'border-red-700/70' : 'border-neutral-800'}`}
+      className={`scroll-mt-4 rounded-lg border bg-neutral-900/50 p-4 print:break-inside-avoid print:break-after-page print:last:break-after-auto ${hasError ? 'border-red-700/70' : 'border-neutral-800'}`}
     >
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div>

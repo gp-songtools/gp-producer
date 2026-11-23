@@ -8,6 +8,13 @@ export interface Vision {
   aesthetic: string;
 }
 
+/**
+ * How the no-singing tags the app generates (NARRATOR spans, backing runs) are written into lyrics-for-lipsync.txt.
+ * `instrumental`: `[INSTRUMENTAL]`, the tag the lip-sync notebook already honours (default). `labeled`: `[INSTRUMENTAL NARRATOR]`.
+ * `own`: `[NARRATOR]` / `[BACKING]`, for a notebook taught those names. Other tags are always written as typed.
+ */
+export type TagSpelling = 'instrumental' | 'labeled' | 'own';
+
 /** `tag`: replace a run of backing lines with one [BACKING] no-singing tag; `omit`: drop them; `include`: keep them as sung lines. */
 export type BackingMode = 'tag' | 'omit' | 'include';
 
@@ -28,9 +35,10 @@ export interface Project {
   /** Signature of the singing stop tags the user has checked by ear (see `stopTagSignature`). Stale once the tags change. */
   stopTagsChecked?: string;
   /** Stop tags typed in by the user (they count as checked by ear). */
-  manualTags?: { t: number; tag: string }[];
+  manualTags?: { t: number; tag: string; endT?: number }[];
   /** How backing-vocal lines (wholly in parentheses) appear in lyrics-for-lipsync.txt. Default: a no-singing tag in their place. */
   backingMode?: BackingMode;
+  tagSpelling?: TagSpelling;
   treatment: Treatment | null;
 }
 

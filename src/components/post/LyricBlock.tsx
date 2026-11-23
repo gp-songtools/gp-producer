@@ -6,10 +6,11 @@ export default function LyricBlock({ items, tagsChecked }: { items: BlockItem[];
   return (
     <ul className="space-y-0.5 font-mono text-xs" aria-label="Lyric block">
       {items.map((i, k) => (
-        <li key={k} data-kind={i.kind} className={i.kind === 'tag' ? (tagsChecked || i.source === 'manual' ? 'text-sky-300' : 'text-neutral-600 line-through decoration-neutral-700') : i.backing ? 'italic text-amber-300' : 'text-neutral-200'}>
+        <li key={k} data-kind={i.kind} data-narrator={i.narrator ? '' : undefined} className={i.narrator ? 'italic text-neutral-500 line-through decoration-neutral-700' : i.kind === 'tag' ? (tagsChecked || i.source === 'manual' ? 'text-sky-300' : 'text-neutral-600 line-through decoration-neutral-700') : i.backing ? 'italic text-amber-300' : 'text-neutral-200'}>
           {blockLine(i)}
           {i.kind === 'tag' && !tagsChecked && i.source !== 'manual' && <span className="ml-2 not-italic text-amber-300/80 no-underline" style={{ textDecoration: 'none' }}>unverified, left out of the text</span>}
-          {i.backing && <span className="ml-2 not-italic text-amber-300/90">backing vocal: the on-screen singer shouldn't mouth this</span>}
+          {i.narrator && <span className="ml-2 not-italic text-sky-300/80" style={{ textDecoration: 'none', display: 'inline-block' }}>narrator, offscreen: not lip-synced</span>}
+          {i.backing && !i.narrator && <span className="ml-2 not-italic text-amber-300/90">backing vocal: the on-screen singer shouldn't mouth this</span>}
         </li>
       ))}
     </ul>

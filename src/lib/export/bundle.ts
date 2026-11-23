@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { extForMime } from '../../hooks/useBlobUrl';
 import type { Scene } from '../../types/blueprint';
-import type { BackingMode, ImageOwner, ImageRecord, Project, StoredAnchor } from '../../types/project';
+import type { BackingMode, TagSpelling, ImageOwner, ImageRecord, Project, StoredAnchor } from '../../types/project';
 import { anchorOwner, sceneOwner } from '../../types/project';
 import { stripAnchor, stripScene } from '../blueprint';
 import { slugName } from '../download';
@@ -25,6 +25,8 @@ export interface BundleInput {
   /** Brief tags held back because they haven't been checked by ear. */
   withheld: number;
   backing: BackingMode;
+  /** Defaults to `instrumental`. */
+  spelling?: TagSpelling;
 }
 
 export interface Bundle {
@@ -68,7 +70,7 @@ export async function buildBundle(i: BundleInput): Promise<Bundle> {
   add('ledger.json', `${JSON.stringify(json, null, 2)}\n`);
   add('ledger.md', buildLedgerMarkdown({ projectName: i.project.name, runtimeSec: i.project.runtimeSec, treatment: i.project.treatment, anchors: i.anchors, scenes, lrc: i.project.lrcLines }));
   add(HANDOFF_FILENAME, buildHandoff({ projectName: i.project.name, scenes, lrc: i.project.lrcLines, tags: i.tags, withheld: i.withheld }));
-  const lyrics = buildLyricsFile(i.project.lrcLines, i.tags, i.backing);
+  const lyrics = buildLyricsFile(i.project.lrcLines, i.tags, i.backing, i.spelling);
   if (lyrics) add(LYRICS_FILENAME, lyrics);
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });

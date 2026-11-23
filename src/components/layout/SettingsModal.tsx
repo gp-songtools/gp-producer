@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { CLAUDE_MODEL_PRESETS, EFFORT_OPTIONS, type EffortSetting } from '../../lib/settings';
 import { formatBytes, getStorageInfo, requestPersistence, type StorageInfo } from '../../lib/storage';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -64,7 +65,8 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
 
         <p className="mt-3 rounded border border-amber-700/50 bg-amber-950/40 p-3 text-sm text-amber-200">
           Keys are stored in this browser's <code>localStorage</code> in plain text and are sent only to Anthropic and Google.
-          On GitHub Pages that storage is shared with every other site on the same <code>github.io</code> origin. Never commit keys.
+          On GitHub Pages that storage is shared with every other site on the same <code>github.io</code> origin. Never commit keys.{' '}
+          <Link to="/help/keys-privacy-and-safety" onClick={onClose} className="underline">Read the safety notes</Link>.
         </p>
         {!persistent && (
           <p className="mt-2 rounded border border-red-700/50 bg-red-950/40 p-3 text-sm text-red-200">

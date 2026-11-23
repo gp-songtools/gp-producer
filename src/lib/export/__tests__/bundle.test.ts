@@ -61,15 +61,15 @@ describe('buildBundle', () => {
     expect(j.treatment.title).toBe('Keeper');
   });
 
-  it('writes the lyrics file with the backing line replaced and the usable tag merged', async () => {
+  it('writes the lyrics file with the backing line replaced by [INSTRUMENTAL] and the usable tag merged', async () => {
     const { text } = await open();
-    expect(await text('lyrics-for-lipsync.txt')).toBe('[00:03.00] hello\n[00:14.00] [BACKING]\n[00:20.00] [INSTRUMENTAL]\n');
+    expect(await text('lyrics-for-lipsync.txt')).toBe('[00:03.00] hello\n[00:14.00] [INSTRUMENTAL]\n[00:20.00] [INSTRUMENTAL]\n');
     expect(await text('lipsync-handoff.txt')).toContain('File: 02_Verse1A_12-25.mp4');
   });
 
   it('never includes brief tags that have not been checked: they are not passed in, and the handoff says so', async () => {
     const { text } = await open({ tags: [], withheld: 2 });
-    expect(await text('lyrics-for-lipsync.txt')).not.toContain('INSTRUMENTAL');
+    expect(await text('lyrics-for-lipsync.txt')).not.toContain('[00:20.00]'); // the unchecked brief tag at 00:20 is held back
     expect(await text('lipsync-handoff.txt')).toContain('2 from the audio brief are NOT checked by ear yet');
   });
 

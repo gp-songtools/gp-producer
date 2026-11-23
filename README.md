@@ -31,7 +31,7 @@ You need:
 
 The app calls Anthropic and Google **directly from your browser** with your own API keys. That is simple and private (no middleman), but it means you should know the following:
 
-- **Keys are kept in your browser's `localStorage`, in plain text.** They are sent only to `api.anthropic.com` and `generativelanguage.googleapis.com`. The built site's Content-Security-Policy blocks connections to any other address.
+- **Keys are kept in your browser's `localStorage`, in plain text.** They are sent only to `api.anthropic.com` and `generativelanguage.googleapis.com`. The built site's Content-Security-Policy blocks connections to any other address, except Google sign-in and the Google Drive API, which the optional Drive buttons use (your API keys are never sent there).
 - **On GitHub Pages, `localStorage` is shared by every site on the same `github.io` origin.** Another page there could read it. If that matters to you, serve the app from your own domain, or run it locally.
 - **Use keys made just for this app,** set a **spending limit** with each provider, and for Google restrict the key to the Generative Language API (and to your site's address, if you can).
 - **Never commit a key**, paste one into a project field, an issue or a screenshot. The repo, the build and the workflow contain no secrets; `.env*` files are ignored.
@@ -46,12 +46,15 @@ What leaves your computer, and when:
 | Lyrics, vision text, audio brief, scene prompts | Anthropic | Generating or fixing a blueprint, revising a scene |
 | Image prompts and reference images | Google (Gemini) | Generating anchors and frames |
 | The song's audio file | Google (Gemini) | Only when you click **Generate with Gemini** in the audio brief |
+| Clip videos, latest anchor and keyframe images, the project .zip | Your Google Drive (`GP Song Tools` folder) | Only when you click **Save clips to Drive** and sign in |
 
 Claude and Gemini charge for use. The app asks before batches of images and counts images made per session, but it cannot show prices; check your provider's pages.
 
 ## Your data
 
 Projects (text, scenes, images, checklists, revisions) live in your browser's IndexedDB. Clearing site data, a private window or a different browser means no projects. **Back up with Export** (project list, or the Post tab); **Import project…** restores a backup as a new project.
+
+**Google Drive is optional.** Only when you click **Save clips to Drive** (Production tab) or a Drive button in the Song spec panel does the app load Google's sign-in and talk to Google Drive. It asks for the `drive.file` permission only, so it sees just the files and folders the GP Song Tools made. Clip videos stay in memory until you save them there; they are never written to the browser's storage, only their names are.
 
 ## Deploying to GitHub Pages
 

@@ -561,5 +561,6 @@ All open questions are resolved:
 - Production tab: "Save video sequence to Song Spec" writes the Video sequence with "Update shared Song Spec" or "Download .songspec.md". Clip names come from `buildFileTag`.
 - Setup tab: "Load timed lyrics from Song Spec" reads Timed lyrics via "Open .songspec.md…" or "Use shared Song Spec".
 
-**Phase 2 (TO DO, not started)**
-- Upload the produced clips and save them to a Google Drive folder, so Framecut can retrieve them and place them on its timeline in order using the Video sequence.
+**Phase 2**
+- Step 3 (done): the Production tab's **Clip files** card matches downloaded clips to scenes and **Save clips to Drive** puts clips, latest images and the project .zip in the song's GP Song Tools folder (`clips/`, `images/`, `projects/`), via the shared `songdrive.js`. Clips stay in memory (not IndexedDB); `scene.clip` keeps name, size and Drive id.
+- To do: Framecut retrieves the clips and places them on its timeline in order using the Video sequence.

@@ -3,7 +3,7 @@ import * as db from '../lib/db';
 import { parseLrc } from '../lib/lrc';
 import { applyRevision, undoLatestRevision } from '../lib/revision';
 import type { RevisionProposal } from '../schemas/revision';
-import type { BlueprintAnchor, ChecklistKey, Scene, Treatment } from '../types/blueprint';
+import type { BlueprintAnchor, ChecklistKey, Scene, SceneClip, Treatment } from '../types/blueprint';
 import type { Project, RunRecord, StoredAnchor, StoredScene } from '../types/project';
 
 const SAVE_DELAY_MS = 400;
@@ -25,6 +25,8 @@ interface ProjectState {
   setScenes: (scenes: Scene[]) => Promise<void>;
   /** Ticks or clears one checklist item on a scene and saves just that scene. */
   setChecklist: (sceneNo: number, key: ChecklistKey, value: boolean) => Promise<void>;
+  /** Sets a scene's clip facts (name, size, Drive id) and ticks the given checklist items, saving just that scene. */
+  setClip: (sceneNo: number, clip: SceneClip, tick?: ChecklistKey[]) => Promise<void>;
   /** Clears every checklist item on a scene. */
   resetChecklist: (sceneNo: number) => Promise<void>;
   /** Applies an accepted revision (prompt fields only) and keeps the replaced prompts in `revisions[]`. Returns the updated scene. */
@@ -104,6 +106,16 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const cur = get().scenes.find((s) => s.scene === sceneNo);
       if (!p || !cur) return;
       const next = { ...cur, checklist: { ...cur.checklist, [key]: value } };
+      set({ scenes: get().scenes.map((s) => (s.scene === sceneNo ? next : s)) });
+      await db.putScene(p.id, next);
+    },
+
+    setClip: async (sceneNo, clip, tick = []) => {
+      const p = get().project;
+      const cur = get().scenes.find((s) => s.scene === sceneNo);
+      if (!p || !cur) return;
+      const checklist = tick.length ? { ...cur.checklist, ...Object.fromEntries(tick.map((k) => [k, true])) } : cur.checklist;
+      const next = { ...cur, clip, ...(checklist ? { checklist } : {}) };
       set({ scenes: get().scenes.map((s) => (s.scene === sceneNo ? next : s)) });
       await db.putScene(p.id, next);
     },

@@ -170,6 +170,16 @@ The **Video sequence** line at the top of the Production tab says whether the so
 
 The button is off until the project has scenes.
 
+### Clip files and Google Drive
+
+The **Clip files** card at the top of the Production tab keeps track of the clips you downloaded and can save them to your Google Drive.
+
+- **Add clip files…** lets you choose the downloaded videos (several at once). Each file is matched to a scene by its name: the exact file tag first (capital letters don't matter), then the scene number at the start of the name (`3_take.mp4` goes to scene 3). A matched scene gets *Downloaded* ticked, and *File tag applied* too when the name was the exact tag. The card says how many matched, lists files it couldn't match ("Not matched: …") and files matched by scene number only (Save clips to Drive renames those to the file tag). Adding a clip for a scene that already has one replaces it.
+- The list under the buttons shows each scene's file tag and its state: *No clip yet*, *Clip added (this session)*, *On Drive*, or *Clip added earlier — add it again to upload*. The same line shows under **File tag** on each scene. Videos can be hundreds of MB, so they are kept only in this tab, never in the browser's storage: after a reload only the name is remembered, and you add the file again to upload it.
+- **Save clips to Drive** signs in to Google (only access to files this app made, nothing else in your Drive) and saves to `My Drive / GP Song Tools / <song title> /`: the clips go to `clips/` named by file tag, the newest anchor and keyframe images to `images/` (`anchor_<name>.png`, `keyframe_<NN>_<Section>.png`), and the project file (the same `.zip` as Export project) to `projects/`. If the song spec has no title, the app asks for one, because the folder is named after it; it also fills in the spec's Drive folder. If a folder with that name already exists, it asks whether to use it.
+- Files already on Drive with the same name and size are skipped, so you can save again after adding more clips. A clip with the same name but a different size asks first ("Replace N clips already on Drive?"). Images and the project file are updated without asking. You see progress as it goes, can **Cancel**, and get a summary of what was uploaded, skipped or failed. If Google sign-in expires, click the button again.
+- The **Song spec** panel above the tabs also has **Save to Drive** and **Open from Drive…** for the song spec file itself.
+
 ### Producing a scene in Google Flow
 
 For each scene, in this order:

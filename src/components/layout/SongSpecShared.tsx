@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { SongDrive } from '../../lib/drive'; // before songSpec: the panel adds its Drive buttons when SongDrive exists
 import { SongSpec } from '../../lib/songSpec';
 
 /** The GP Song Tools shared "Song spec" panel (from the vendored library), closed by default. */
@@ -7,7 +8,7 @@ export default function SongSpecShared() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const panel = SongSpec.mountPanel(el, { open: false });
+    const panel = SongSpec.mountPanel(el, { open: false, drive: SongDrive });
     return () => panel.destroy();
   }, []);
   return <div ref={ref} className="spec-panel mb-4 mx-auto max-w-6xl" data-testid="songspec-shared" />;

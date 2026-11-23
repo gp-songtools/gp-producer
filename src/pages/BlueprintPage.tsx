@@ -46,7 +46,7 @@ export default function BlueprintPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       {missing.length > 0 && (
-        <div className="rounded border border-amber-700/50 bg-amber-950/30 p-3 text-sm text-amber-100">
+        <div className="no-print rounded border border-amber-700/50 bg-amber-950/30 p-3 text-sm text-amber-100">
           <p className="font-medium">Before Claude can write the blueprint:</p>
           <ul className="mt-1 list-disc pl-5 text-xs">
             {missing.map((m) => <li key={m.id}>{m.label}{m.hint ? `: ${m.hint}` : ''}</li>)}
@@ -91,12 +91,21 @@ export default function BlueprintPage() {
 
       {hasBlueprint && T !== null && (
         <>
+          <header className="hidden print:block">
+            <h1 className="text-xl font-semibold">{project.name}</h1>
+            <p className="text-sm">{scenes.length} scenes · {Math.floor(T / 60)}:{String(T % 60).padStart(2, '0')} runtime · printed {new Date().toLocaleDateString()}</p>
+          </header>
           <ValidationBanner errors={errors} warnings={warnings} sceneCount={scenes.length} />
           <TreatmentPanel treatment={project.treatment!} />
           <ImageBar />
           <AnchorGallery anchors={anchors} projectId={project.id} />
           <section aria-label="Scene ledger" className="space-y-3">
-            <h2 className="text-base font-semibold">Storyboard & scene ledger</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold">Storyboard & scene ledger</h2>
+              <button type="button" onClick={() => window.print()} className="no-print rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800" title="Print or save as PDF: one scene per page">
+                Print storyboard
+              </button>
+            </div>
             <FrameToolbar scenes={scenes} anchors={anchors} projectId={project.id} />
             <SceneTimeline scenes={scenes} runtimeSec={T} byScene={byScene} />
             {scenes.map((s) => (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { buildBundle, HANDOFF_FILENAME, LYRICS_FILENAME } from '../../lib/export/bundle';
 import { BACKING_MODE_LABEL, countBacking, TAG_SPELLING_LABEL } from '../../lib/export/lyricsFile';
 import * as db from '../../lib/db';
+import { exportProjectArchive } from '../../lib/projectArchive';
 import { downloadBlob, downloadText } from '../../lib/download';
 import type { StopTag } from '../../lib/brief';
 import { useProjectStore } from '../../store/projectStore';
@@ -19,6 +20,22 @@ export default function ExportPanel({ lyricsText, handoffText, tags, withheld, b
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const nBacking = countBacking(project.lrcLines);
+
+  const exportProject = async () => {
+    setBusy(true);
+    setError(null);
+    setSummary(null);
+    try {
+      await useProjectStore.getState().flush();
+      const a = await exportProjectArchive(project.id);
+      downloadBlob(a.blob, a.filename);
+      setSummary(`Downloaded ${a.filename}: the whole project with ${a.imageCount} image version${a.imageCount === 1 ? '' : 's'}. Import it from the project list to restore it as a new project.`);
+    } catch (e) {
+      setError(`Couldn't export the project: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const exportZip = async () => {
     setBusy(true);
@@ -75,6 +92,10 @@ export default function ExportPanel({ lyricsText, handoffText, tags, withheld, b
           {busy ? 'Building zip…' : 'Download export bundle (.zip)'}
         </button>
         <span className="text-xs text-neutral-500">anchors, keyframes, ledger.json, ledger.md and both text files</span>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-800 pt-3">
+        <button type="button" disabled={busy} onClick={() => void exportProject()} className={btn}>Export whole project (.zip)</button>
+        <span className="text-xs text-neutral-500">for backup or moving to another browser: every image version, checklists, revisions. Import it from the project list. Not the audio, and never your API keys.</span>
       </div>
       {summary && <p role="status" className="mt-2 text-xs text-emerald-300">{summary}</p>}
       {error && <p role="alert" className="mt-2 text-xs text-red-300">{error}</p>}

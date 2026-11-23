@@ -20,7 +20,7 @@ export default function CopyButton({ text, label = 'Copy', className = '' }: { t
     <button
       type="button"
       onClick={copy}
-      className={`rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800 ${className}`}
+      className={`no-print rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800 ${className}`}
     >
       {state === 'copied' ? 'Copied ✓' : state === 'failed' ? 'Copy failed: select the text' : label}
     </button>

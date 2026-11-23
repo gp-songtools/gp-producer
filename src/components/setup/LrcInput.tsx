@@ -3,7 +3,6 @@ import { fmt } from '../../lib/ledger/format';
 import { parseLrc } from '../../lib/lrc';
 import { useProjectStore } from '../../store/projectStore';
 import Card, { fieldInput } from '../ui/Card';
-import SongSpecLyrics from './SongSpecLyrics';
 
 export default function LrcInput() {
   const raw = useProjectStore((s) => s.project!.lrcRaw);
@@ -65,7 +64,6 @@ export default function LrcInput() {
         {pastEnd > 0 && <p className="text-red-300">{pastEnd} line(s) start at or after the runtime below.</p>}
         {fileError && <p role="alert" className="text-red-300">{fileError}</p>}
       </div>
-      <SongSpecLyrics />
     </Card>
   );
 }

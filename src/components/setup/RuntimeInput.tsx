@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fmt, parseTimeInput } from '../../lib/ledger/format';
 import { checkRuntime } from '../../lib/setup';
 import { useAudioStore } from '../../store/audioStore';
@@ -10,6 +10,12 @@ export default function RuntimeInput() {
   const patch = useProjectStore((s) => s.patch);
   const audio = useAudioStore();
   const [draft, setDraft] = useState(project.runtimeSec === null ? '' : fmt(project.runtimeSec));
+
+  // Follow changes made elsewhere (e.g. "Use as runtime" in From the song spec).
+  useEffect(() => {
+    if (parseTimeInput(draft) !== project.runtimeSec) setDraft(project.runtimeSec === null ? '' : fmt(project.runtimeSec));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.runtimeSec]);
 
   const parsed = parseTimeInput(draft);
   const check = checkRuntime(parsed, draft.trim() === '' || parsed !== null, project.lrcLines);

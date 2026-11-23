@@ -13,12 +13,12 @@ Everything runs in your browser: there is no server, no account and no analytics
 The short version:
 
 1. Add your API keys in **Settings** (read [Keys and safety](#keys-and-safety) first).
-2. **Setup:** your `.lrc` lyrics (or the Timed lyrics from a GP Song Tools Song Spec), the song's runtime, your vision, and optionally a Gemini audio brief.
+2. **Setup:** your `.lrc` lyrics (or the Timed lyrics from a GP Song Tools song spec, via the **From the song spec** box), the song's runtime, your vision, and optionally a Gemini audio brief.
 3. **Blueprint:** Claude writes the plan. Optionally draw the anchor images and storyboard frames.
 4. **Production:** one scene at a time, copy each prompt into Google Flow, download and name each clip, tick the checklist.
 5. **Post:** lip-sync files and exports.
 
-The **Production** tab can also save the scene list to a Song Spec (`.songspec.md`, shared by the GP Song Tools) as its Video sequence. The Song Spec library is vendored in `src/vendor/songspec.js`; do not edit it, copy it from `gp-songtools/toolsmenu/songspec/`.
+A **Song spec** panel above the tabs shows the song spec (`.songspec.md`, shared by the GP Song Tools) and lets you open, download or copy it. The **Production** tab can save the scene list to it as its Video sequence (**Save video sequence to song spec**). The Song Spec library is vendored in `src/vendor/songspec.js`; do not edit it, copy it from `gp-songtools/toolsmenu/songspec/`.
 
 You need:
 

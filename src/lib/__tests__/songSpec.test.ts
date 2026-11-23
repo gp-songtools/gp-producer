@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { SongSpec, buildVideoSequence, readTimedLyrics, videoSequenceDownload, writeVideoSequence } from '../songSpec';
+import { SongSpec, buildVideoSequence, mmss, readTimedLyrics, specOffers, videoSequenceStatus, writeVideoSequence } from '../songSpec';
 
 const example = readFileSync(join(__dirname, 'fixtures/example.songspec.md'), 'utf8');
 const sc = (scene: number, section: string, start_sec: number, end_sec: number) => ({ scene, section, start_sec, end_sec });
@@ -77,10 +77,56 @@ describe('writeVideoSequence', () => {
   });
 });
 
-describe('videoSequenceDownload', () => {
-  it('uses the given base and names the file from the title', () => {
-    const d = videoSequenceDownload(scenes, example);
-    expect(d.name).toBe('paper-lanterns.songspec.md');
-    expect(d.text).toContain('by=gp-producer');
+const withDuration = example.replace(/^duration:.*$/m, 'duration: 214');
+const proj = { lrcRaw: '', runtimeSec: null as number | null, name: 'Untitled project' };
+
+describe('specOffers', () => {
+  it('offers timed lyrics, duration and title when nothing is in use', () => {
+    const o = specOffers(withDuration, proj)!;
+    expect(o.timed).toMatchObject({ by: 'framecut', tool: 'Framecut', count: 12, first: 12.4, inUse: false });
+    expect(o.duration).toEqual({ sec: 214, inUse: false });
+    expect(o.title).toEqual({ value: 'Paper Lanterns', inUse: false });
+    expect(o.usedLabels).toEqual([]);
+  });
+  it('flags in-use rows, ignoring newline style and edge whitespace', () => {
+    const body = readTimedLyrics(example)!.lrc;
+    const o = specOffers(withDuration, { lrcRaw: '\n' + body.replace(/\n/g, '\r\n') + '\n', runtimeSec: 214, name: 'Paper Lanterns' })!;
+    expect(o.timed!.inUse && o.duration!.inUse && o.title!.inUse).toBe(true);
+    expect(o.usedLabels).toEqual(['Timed lyrics (Framecut)', 'Duration', 'Title']);
+  });
+  it('offers no duration when the spec has none', () => {
+    expect(specOffers(example, proj)!.duration).toBeNull();
+  });
+  it('is null for no spec or an empty one', () => {
+    expect(specOffers('', proj)).toBeNull();
+    expect(specOffers(SongSpec.create(), proj)).toBeNull();
+  });
+  it('notes lyrics without timed lyrics', () => {
+    const doc = SongSpec.parse(SongSpec.create());
+    SongSpec.setSection(doc, 'lyrics', 'la la la', { by: 'lyricpad' });
+    const o = specOffers(SongSpec.serialize(doc), proj)!;
+    expect(o.timed).toBeNull();
+    expect(o.lyricsOnly).toBe(true);
+  });
+});
+
+describe('videoSequenceStatus', () => {
+  it('is none without the section', () => {
+    expect(videoSequenceStatus('', scenes)).toEqual({ state: 'none' });
+    expect(videoSequenceStatus(SongSpec.create(), scenes)).toEqual({ state: 'none' });
+  });
+  it('is current after writing and outdated when scenes change', () => {
+    const { text } = writeVideoSequence(example, scenes);
+    const cur = videoSequenceStatus(text, scenes);
+    expect(cur).toMatchObject({ state: 'current', by: 'gp-producer', count: 4 });
+    expect(videoSequenceStatus(text, [...scenes, sc(5, 'Bridge', 230, 240)]).state).toBe('outdated');
+    expect(videoSequenceStatus(text, []).state).toBe('outdated');
+  });
+});
+
+describe('mmss', () => {
+  it('formats M:SS', () => {
+    expect(mmss(214)).toBe('3:34');
+    expect(mmss(65)).toBe('1:05');
   });
 });

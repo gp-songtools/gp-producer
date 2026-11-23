@@ -20,6 +20,7 @@ export interface SongSpecStore {
   update(fn: (doc: SongSpecDoc) => unknown): string;
   onChange(cb: (text: string) => void): () => void;
 }
+export interface SongSpecPanel { refresh(): void; say(text: string, cls?: string): void; destroy(): void }
 export interface SongSpecApi {
   VERSION: string;
   parse(text: string): SongSpecDoc;
@@ -32,5 +33,8 @@ export interface SongSpecApi {
   fileName(doc: SongSpecDoc): string;
   download(text: string, name: string): void;
   toolName(id: string): string;
+  setting(doc: SongSpecDoc, key: string): string;
+  staleNotes(doc: SongSpecDoc, id: string): string[];
+  mountPanel(el: HTMLElement, opts?: { onChange?: (doc: SongSpecDoc) => void; open?: boolean }): SongSpecPanel;
   store: SongSpecStore;
 }

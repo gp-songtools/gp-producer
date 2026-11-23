@@ -2,6 +2,7 @@
 // songspec.js is a vendored UMD file that is never edited; as a module it sets globalThis.SongSpec, so import it for that effect.
 import '../vendor/songspec.js';
 import type { SongSpecApi, SongSpecDoc } from '../vendor/songspec';
+import { parseLrc } from './lrc';
 import { buildFileTag } from './ledger/fileTag';
 import type { BlueprintScene } from '../types/blueprint';
 
@@ -51,19 +52,78 @@ export function writeVideoSequence(specText: string, scenes: SceneTiming[]): { t
 /** The shared browser copy ('' when there is none). */
 export const loadShared = (): string => SongSpec.store.load();
 
-/** The shared copy's Timed lyrics, or null. */
-export function sharedTimedLyrics(): { lrc: string; by: string } | null {
-  const t = loadShared();
-  return t ? readTimedLyrics(t) : null;
+/** `M:SS` (minutes may pass 59). */
+export function mmss(sec: number): string {
+  const s = Math.max(0, Math.round(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export type SaveResult = { status: 'saved' } | { status: 'no-shared' } | { status: 'cancelled' } | { status: 'blocked' };
+const normLrc = (t: string): string => t.replace(/\r\n?/g, '\n').trim();
 
-/** Updates the shared copy. Asks `ask(reason)` first when the existing section was edited by hand or written by another tool. */
+export interface SpecOffers {
+  timed: { body: string; by: string; tool: string; count: number; first: number; last: number; inUse: boolean } | null;
+  /** The spec has Lyrics but no Timed lyrics. */
+  lyricsOnly: boolean;
+  duration: { sec: number; inUse: boolean } | null;
+  title: { value: string; inUse: boolean } | null;
+  stale: string[];
+  /** Labels of what this project already uses, e.g. "Timed lyrics (Framecut)". */
+  usedLabels: string[];
+}
+
+/** What a spec text offers this project: rows with in-use flags. Empty/null spec offers nothing. */
+export function specOffers(specText: string, project: { lrcRaw: string; runtimeSec: number | null; name: string }): SpecOffers | null {
+  if (!specText) return null;
+  const doc = SongSpec.parse(specText);
+  const ts = SongSpec.section(doc, 'timed-lyrics');
+  const tl = ts && ts.body.trim() ? ts : null;
+  let timed: SpecOffers['timed'] = null;
+  if (tl) {
+    const lines = parseLrc(tl.body).lines;
+    timed = {
+      body: tl.body, by: tl.by, tool: SongSpec.toolName(tl.by) === 'unknown' ? 'hand' : SongSpec.toolName(tl.by),
+      count: lines.length, first: lines[0]?.t ?? 0, last: lines[lines.length - 1]?.t ?? 0,
+      inUse: normLrc(project.lrcRaw) === normLrc(tl.body),
+    };
+  }
+  const lyr = SongSpec.section(doc, 'lyrics');
+  const dur = Number(SongSpec.setting(doc, 'duration'));
+  const duration = Number.isFinite(dur) && dur >= 15 && dur <= 360 && Number.isInteger(dur) ? { sec: dur, inUse: project.runtimeSec === dur } : null;
+  const t = SongSpec.setting(doc, 'title').trim();
+  const title = t ? { value: t, inUse: project.name === t } : null;
+  const usedLabels = [
+    ...(timed?.inUse ? [`Timed lyrics (${timed.tool})`] : []),
+    ...(duration?.inUse ? ['Duration'] : []),
+    ...(title?.inUse ? ['Title'] : []),
+  ];
+  const out: SpecOffers = {
+    timed, lyricsOnly: !tl && !!lyr && !!lyr.body.trim(), duration, title,
+    stale: tl ? SongSpec.staleNotes(doc, 'timed-lyrics') : [], usedLabels,
+  };
+  return timed || out.lyricsOnly || duration || title ? out : null;
+}
+
+/** True when the spec's Video sequence section matches what these scenes would write. */
+export function videoSequenceStatus(
+  specText: string,
+  scenes: SceneTiming[],
+): { state: 'none' } | { state: 'current' | 'outdated'; by: string; tool: string; at: string; count: number } {
+  if (!specText) return { state: 'none' };
+  const s = SongSpec.section(SongSpec.parse(specText), 'video-sequence');
+  if (!s || !s.body.trim()) return { state: 'none' };
+  const tool = SongSpec.toolName(s.by) === 'unknown' ? 'hand' : SongSpec.toolName(s.by);
+  return {
+    state: scenes.length > 0 && s.body.trim() === buildVideoSequence(scenes).trim() ? 'current' : 'outdated',
+    by: s.by, tool, at: s.at, count: s.body.split('\n').filter((l) => l.trim()).length,
+  };
+}
+
+export type SaveResult = { status: 'saved' } | { status: 'cancelled' } | { status: 'blocked' };
+
+/** Updates the shared copy (creating a spec when there is none). Asks `ask(reason)` first when the existing section was edited by hand or written by another tool. */
 export function saveVideoSequenceToShared(scenes: SceneTiming[], ask: (reason: string) => boolean): SaveResult {
   const current = loadShared();
-  if (!current) return { status: 'no-shared' };
-  const reason = SongSpec.confirmReason(SongSpec.parse(current), 'video-sequence', OWNER);
+  const reason = current ? SongSpec.confirmReason(SongSpec.parse(current), 'video-sequence', OWNER) : '';
   if (reason && !ask(reason)) return { status: 'cancelled' };
   try {
     SongSpec.store.update((doc) => setVideoSequence(doc, scenes)); // re-reads, so another tab's changes survive
@@ -72,14 +132,3 @@ export function saveVideoSequenceToShared(scenes: SceneTiming[], ask: (reason: s
   }
   return { status: 'saved' };
 }
-
-/** Text to download: the opened spec, else the shared copy, else a new one, with the Video sequence written in. */
-export function videoSequenceDownload(scenes: SceneTiming[], base?: string): { text: string; name: string; confirm: string } {
-  const out = writeVideoSequence(base || loadShared() || SongSpec.create(), scenes);
-  return { ...out, name: SongSpec.fileName(SongSpec.parse(out.text)) };
-}
-
-// The spec file opened on the Setup tab this session (memory only), offered as the base for the Production download.
-let opened: string | undefined;
-export const setOpenedSpec = (text: string | undefined): void => { opened = text; };
-export const getOpenedSpec = (): string | undefined => opened;

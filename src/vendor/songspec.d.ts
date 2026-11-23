@@ -1,4 +1,4 @@
-// Types for the vendored songspec.js (GP Song Tools, v1.1.0). The library is a UMD file: in a browser module it
+// Types for the vendored songspec.js (GP Song Tools, v1.2.0). The library is a UMD file: in a browser module it
 // registers itself as globalThis.SongSpec, so src/lib/songSpec.ts imports it for the side effect and reads that global.
 export interface SongSpecSection {
   id: string;
@@ -35,6 +35,6 @@ export interface SongSpecApi {
   toolName(id: string): string;
   setting(doc: SongSpecDoc, key: string): string;
   staleNotes(doc: SongSpecDoc, id: string): string[];
-  mountPanel(el: HTMLElement, opts?: { onChange?: (doc: SongSpecDoc) => void; open?: boolean }): SongSpecPanel;
+  mountPanel(el: HTMLElement, opts?: { onChange?: (doc: SongSpecDoc) => void; open?: boolean; drive?: unknown }): SongSpecPanel;
   store: SongSpecStore;
 }

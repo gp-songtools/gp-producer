@@ -1,4 +1,5 @@
 import { Link, Navigate, useParams } from 'react-router-dom';
+import ClipFilesCard from '../components/production/ClipFilesCard';
 import SongSpecPanel from '../components/production/SongSpecPanel';
 import ProductionDeck from '../components/production/ProductionDeck';
 import { resolveScene } from '../lib/production';
@@ -27,6 +28,7 @@ export default function ProductionPage() {
 
   return (
     <>
+      <ClipFilesCard scenes={scenes} projectId={project.id} />
       <SongSpecPanel scenes={scenes} />
       <ProductionDeck key={scene.scene} scene={scene} scenes={scenes} anchors={anchors} lrc={project.lrcLines} projectId={project.id} />
     </>

@@ -34,6 +34,7 @@ export interface SongSpecApi {
   download(text: string, name: string): void;
   toolName(id: string): string;
   setting(doc: SongSpecDoc, key: string): string;
+  setSetting(doc: SongSpecDoc, key: string, value: string, opts: { by: string }): SongSpecDoc;
   staleNotes(doc: SongSpecDoc, id: string): string[];
   mountPanel(el: HTMLElement, opts?: { onChange?: (doc: SongSpecDoc) => void; open?: boolean; drive?: unknown }): SongSpecPanel;
   store: SongSpecStore;

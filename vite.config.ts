@@ -6,12 +6,13 @@ import tailwindcss from '@tailwindcss/vite';
 // Production-only CSP: the dev server needs inline scripts and a websocket for HMR.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' https://static.cloudflareinsights.com",
-  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' https://static.cloudflareinsights.com https://accounts.google.com",
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+  "frame-src https://accounts.google.com",
   "img-src 'self' data: blob:",
   "media-src 'self' blob:",
   "font-src 'self'",
-  "connect-src 'self' https://api.anthropic.com https://generativelanguage.googleapis.com https://cloudflareinsights.com",
+  "connect-src 'self' https://api.anthropic.com https://generativelanguage.googleapis.com https://cloudflareinsights.com https://www.googleapis.com https://accounts.google.com",
   "object-src 'none'",
   "base-uri 'self'",
 ].join('; ');

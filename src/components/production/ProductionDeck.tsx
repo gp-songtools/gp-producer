@@ -10,6 +10,7 @@ import type { StoredAnchor } from '../../types/project';
 import SceneFrame from '../blueprint/SceneFrame';
 import CopyButton from '../ui/CopyButton';
 import CompletionChecklist from './CompletionChecklist';
+import { useClipStateText } from './ClipFilesCard';
 import AnchorDownloads from './AnchorDownloads';
 import PromptPanel from './PromptPanel';
 import ReviseDrawer from './ReviseDrawer';
@@ -26,6 +27,7 @@ export default function ProductionDeck({ scene: s, scenes, anchors, lrc, project
   const target = extensionTarget(s);
   const { prev, next } = neighbours(scenes, s.scene);
   const [revising, setRevising] = useState(false);
+  const clipText = useClipStateText(s, projectId);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -117,6 +119,7 @@ export default function ProductionDeck({ scene: s, scenes, anchors, lrc, project
         <div className="min-w-0">
           <p className="text-xs text-neutral-400">Name the downloaded clip</p>
           <code className="mt-0.5 block truncate text-neutral-100">{tag}</code>
+          <p className="mt-0.5 text-[11px] text-neutral-500" data-testid="clip-state">{clipText}</p>
         </div>
         <CopyButton text={tag} label="Copy file tag" />
       </section>

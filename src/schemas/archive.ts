@@ -34,6 +34,7 @@ const revisionSchema = z.object({
 const storedSceneSchema = sceneSchema.extend({
   needs_review: z.boolean().optional(),
   checklist: z.record(z.string(), z.boolean()).optional(),
+  clip: z.object({ name: z.string(), size: z.number(), driveFileId: z.string().optional(), driveName: z.string().optional(), savedAt: z.string().optional() }).optional(),
   revisions: z.array(revisionSchema).optional(),
 });
 

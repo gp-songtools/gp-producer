@@ -34,6 +34,15 @@ export interface BlueprintScene {
 export type ChecklistKey = 'anchorsAttached' | 'baseGenerated' | 'extensionGenerated' | 'downloaded' | 'tagged';
 export type SceneChecklist = Partial<Record<ChecklistKey, boolean>>;
 
+/** Facts about a scene's video clip. `driveFileId` etc. are set once it has been saved to Google Drive. */
+export interface SceneClip {
+  name: string;
+  size: number;
+  driveFileId?: string;
+  driveName?: string;
+  savedAt?: string;
+}
+
 /** One accepted Claude revision. `old` holds what was replaced, so it can be undone. Only prompts are ever revised. */
 export interface SceneRevision {
   at: number;
@@ -50,6 +59,8 @@ export interface Scene extends BlueprintScene {
   needs_review?: boolean;
   /** Production checklist (client-side only; never sent to Claude). */
   checklist?: SceneChecklist;
+  /** The downloaded clip file (client-side only). The video itself is never stored in the browser; see clipStore. */
+  clip?: SceneClip;
   /** Accepted revisions, oldest first; the last one can be undone. */
   revisions?: SceneRevision[];
 }

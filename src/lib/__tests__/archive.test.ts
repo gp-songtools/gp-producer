@@ -29,7 +29,7 @@ async function seed() {
     vision: { narrativeArc: 'arc', visualTone: '', mood: '', palette: '', aesthetic: '' },
   });
   const scenes = goodLedger();
-  scenes[1] = { ...scenes[1], checklist: { baseGenerated: true }, revisions: [{ at: 5, request: 'too fast', notes: 'n', old: { basePrompt: 'old', extensionPrompt: null, keyframePrompt: 'k' } }], needs_review: true };
+  scenes[1] = { ...scenes[1], checklist: { baseGenerated: true }, clip: { name: 'c.mp4', size: 5, driveFileId: 'F1', driveName: '02_Sec2_12-25.mp4', savedAt: '2026-11-23T00:00:00.000Z' }, revisions: [{ at: 5, request: 'too fast', notes: 'n', old: { basePrompt: 'old', extensionPrompt: null, keyframePrompt: 'k' } }], needs_review: true };
   await db.replaceBlueprint(p.id, [{ id: 'character', name: 'Character', category: 'character', prompt: 'A keeper' }], scenes);
   await db.putImage(img(p.id, 'a-old', 'anchor:character', PNG, 1));
   await db.putImage(img(p.id, 'a-new', 'anchor:character', Uint8Array.from([...PNG, 7]), 2));
@@ -65,6 +65,7 @@ describe('project archive: export then import', () => {
     expect(scenes).toHaveLength(4);
     expect(scenes.every((s) => s.projectId === copy.id)).toBe(true);
     expect(scenes[1].checklist).toEqual({ baseGenerated: true });
+    expect(scenes[1].clip).toEqual({ name: 'c.mp4', size: 5, driveFileId: 'F1', driveName: '02_Sec2_12-25.mp4', savedAt: '2026-11-23T00:00:00.000Z' });
     expect(scenes[1].revisions?.[0]).toMatchObject({ request: 'too fast', old: { basePrompt: 'old' } });
     expect(scenes[1].needs_review).toBe(true);
     expect(scenes[0].base_prompt).toBe('b');

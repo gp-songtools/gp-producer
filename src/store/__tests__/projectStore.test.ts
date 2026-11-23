@@ -159,4 +159,14 @@ describe('revisions', () => {
     expect(await st.undoRevision(2)).toBeNull();
     expect(await st.acceptRevision(99, { base_prompt: 'x', extension_prompt: null, keyframe_prompt: 'y', notes: '' }, 'r')).toBeNull();
   });
+
+  it('setClip stores the clip facts, ticks items and saves the scene', async () => {
+    const p = await db.createProject('P');
+    await db.replaceBlueprint(p.id, [{ id: 'a', name: 'A', category: 'character', prompt: 'x' }], goodLedger());
+    await useProjectStore.getState().load(p.id);
+    await useProjectStore.getState().setClip(2, { name: 'a.mp4', size: 7 }, ['downloaded', 'tagged']);
+    const stored = (await db.getScenes(p.id)).find((x) => x.scene === 2)!;
+    expect(stored.clip).toEqual({ name: 'a.mp4', size: 7 });
+    expect(stored.checklist).toEqual({ downloaded: true, tagged: true });
+  });
 });

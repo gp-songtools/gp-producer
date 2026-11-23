@@ -1,6 +1,6 @@
 # AI Music Video Director & Storyboard Studio: Build Plan
 
-Status: **REVISION 3, approved in principle; awaiting go-ahead to start M0. No application code or Vite scaffold exists yet.**
+Status: **The app exists (see README.md and docs/USER_GUIDE.md); this plan is the original design. Song Spec Phase 1: reads Timed lyrics, writes Video sequence.**
 
 **Changes in revision 2:** (a) Scene length rules replaced: base clip 10–15 s, optional extension 3–4 s, enforced as separate fields (§2.2a). (b) Three Gemini model roles: workhorse, hero and draft (§3.2). (c) Key-exposure risk and file-tag format accepted (§0).
 
@@ -551,3 +551,15 @@ All open questions are resolved:
 - `SKILL.md` (and its `music-video-director/` copy) is corrected to the same rules in this branch.
 
 **Next step:** start M0 (scaffold, Pages workflow, deploy) on `claude/wizardly-dirac-vazkwu`, on your go-ahead.
+
+---
+
+## 10. Song Spec — Phase 1 (done) / Phase 2 (to do)
+
+**Phase 1 (done)**
+- Song spec library v1.1.0 adds two sections: Timed lyrics (written by Framecut) and Video sequence (written by GP Producer).
+- Production tab: "Save video sequence to Song Spec" writes the Video sequence with "Update shared Song Spec" or "Download .songspec.md". Clip names come from `buildFileTag`.
+- Setup tab: "Load timed lyrics from Song Spec" reads Timed lyrics via "Open .songspec.md…" or "Use shared Song Spec".
+
+**Phase 2 (TO DO, not started)**
+- Upload the produced clips and save them to a Google Drive folder, so Framecut can retrieve them and place them on its timeline in order using the Video sequence.

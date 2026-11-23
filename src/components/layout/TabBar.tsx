@@ -23,7 +23,7 @@ export default function TabBar() {
           key={t.to}
           to={t.to}
           className={({ isActive }) =>
-            `border-b-2 px-2 py-2 text-sm sm:px-3 ${isActive ? 'border-amber-400 text-white' : 'border-transparent text-neutral-400 hover:text-neutral-200'}`
+            `border-b-2 px-2 py-2 text-sm sm:px-3 ${isActive ? 'border-accent text-neutral-50' : 'border-transparent text-neutral-400 hover:text-neutral-200'}`
           }
         >
           <span className="hidden sm:inline">{t.n} · </span>

@@ -88,7 +88,7 @@ export default function ExportPanel({ lyricsText, handoffText, tags, withheld, b
 
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-800 pt-3">
         <button type="button" onClick={() => downloadText(handoffText, HANDOFF_FILENAME)} className={btn}>Download {HANDOFF_FILENAME}</button>
-        <button type="button" disabled={busy} onClick={() => void exportZip()} className="rounded border border-amber-400 bg-amber-400 px-3 py-1.5 text-sm font-medium text-black disabled:opacity-40">
+        <button type="button" disabled={busy} onClick={() => void exportZip()} className="rounded border border-accent bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg disabled:opacity-40">
           {busy ? 'Building zip…' : 'Download export bundle (.zip)'}
         </button>
         <span className="text-xs text-neutral-500">anchors, keyframes, ledger.json, ledger.md and both text files</span>

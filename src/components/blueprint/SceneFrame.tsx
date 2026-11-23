@@ -90,7 +90,7 @@ export default function SceneFrame({ scene, anchors, allScenes, projectId }: { s
         <select aria-label={`Model for scene ${scene.scene} frame`} value={role} onChange={(e) => setRole(e.target.value as keyof ModelRoles)} disabled={running} title={effective} className="rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 text-xs">
           {(Object.keys(ROLE_LABEL) as (keyof ModelRoles)[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}{r === 'workhorse' && draftMode ? ' → Draft' : ''}</option>)}
         </select>
-        <button type="button" disabled={running || !geminiKey} title={geminiKey ? effective : 'Add a Gemini API key in Settings'} onClick={() => run(role)} className="rounded border border-amber-400 bg-amber-400 px-2 py-1 text-xs font-medium text-black disabled:cursor-not-allowed disabled:opacity-40">
+        <button type="button" disabled={running || !geminiKey} title={geminiKey ? effective : 'Add a Gemini API key in Settings'} onClick={() => run(role)} className="rounded border border-accent bg-accent px-2 py-1 text-xs font-medium text-accent-fg disabled:cursor-not-allowed disabled:opacity-40">
           {current ? 'Regenerate frame' : 'Generate frame'}
         </button>
         {canUpgrade && <button type="button" onClick={() => run('hero')} className={btn} title={`Re-render with ${models.hero}; the current frame stays in history`}>Upgrade to Hero</button>}

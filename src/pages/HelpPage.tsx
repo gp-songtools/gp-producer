@@ -27,14 +27,14 @@ export default function HelpPage() {
       <aside className="no-print lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto" aria-label="Help contents">
         <button type="button" onClick={() => navigate(-1)} className="rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800">← Back</button>
         <label htmlFor="help-search" className="mt-3 block text-xs font-medium text-neutral-400">Search the guide</label>
-        <input id="help-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. narrator, 401, backup" className="mt-1 w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-amber-400" />
+        <input id="help-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. narrator, 401, backup" className="mt-1 w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-accent" />
         {query.trim() ? (
           <div className="mt-3" role="region" aria-label="Search results">
             {hits.length === 0 ? <p className="text-xs text-neutral-500">Nothing found. Try fewer or different words.</p> : (
               <ul className="space-y-2">
                 {hits.map((h) => (
                   <li key={h.slug}>
-                    <Link to={`/help/${h.slug}`} onClick={() => setQuery('')} className="text-sm font-medium text-amber-300 hover:underline">{h.title}</Link>
+                    <Link to={`/help/${h.slug}`} onClick={() => setQuery('')} className="text-sm font-medium text-accent hover:underline">{h.title}</Link>
                     <p className="text-xs text-neutral-500">{h.snippet}</p>
                   </li>
                 ))}
@@ -46,7 +46,7 @@ export default function HelpPage() {
             <ul className="space-y-0.5 text-sm">
               {toc.map((s) => (
                 <li key={s.slug} className={s.level === 3 ? 'pl-3' : 'mt-2 font-medium'}>
-                  <Link to={`/help/${s.slug}`} className={`block rounded px-1 py-0.5 hover:bg-neutral-800 ${section === s.slug ? 'text-amber-300' : s.level === 3 ? 'text-neutral-400' : 'text-neutral-200'}`}>{s.title}</Link>
+                  <Link to={`/help/${s.slug}`} className={`block rounded px-1 py-0.5 hover:bg-neutral-800 ${section === s.slug ? 'text-accent' : s.level === 3 ? 'text-neutral-400' : 'text-neutral-200'}`}>{s.title}</Link>
                 </li>
               ))}
             </ul>

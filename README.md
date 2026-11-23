@@ -1,10 +1,10 @@
-# Music Video Director
+# GP Producer
 
 A browser app that helps you plan and produce an AI-generated music video for a song. You give it timed lyrics, the song's length and your idea of the look; Claude writes a director's treatment, a set of reference images to draw and a scene-by-scene ledger with prompts for Google Flow; Gemini can draw the reference images and storyboard frames; and the app walks you through the clips one scene at a time and prepares the files for a lip-sync step.
 
 **It does not generate the video itself.** You make the clips in Google Flow, then assemble them in a video editor.
 
-Everything runs in your browser: there is no server, no account and no analytics. Your projects are stored on your own computer.
+Everything runs in your browser: there is no server and no account. Your projects are stored on your own computer. The page loads the GP Song Tools suite's cookie-free Cloudflare Web Analytics beacon (page visits only, never your projects, lyrics, audio or keys); privacy details are on the suite's [Privacy & credits](https://gp-songtools.github.io/toolsmenu/privacy.html) page.
 
 ## Using it
 

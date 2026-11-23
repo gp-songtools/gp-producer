@@ -5,7 +5,7 @@ import { imageDimensions, isWidescreen, type Dimensions } from '../../lib/image'
 import { DEFAULT_BRIEF_MODEL, DEFAULT_MODELS, MAX_ANCHORS_LIMIT, type ModelRoles } from '../../lib/settings';
 import { useSettingsStore } from '../../store/settingsStore';
 
-const input = 'w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-amber-400';
+const input = 'w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-accent';
 const label = 'block text-xs font-medium text-neutral-400 mb-1';
 const small = 'rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800 disabled:opacity-40';
 
@@ -151,7 +151,7 @@ export default function GeminiModels() {
                     key={role}
                     type="button"
                     onClick={() => updateSettings({ models: { [role]: m.id } })}
-                    className={`rounded border px-1.5 py-0.5 ${settings.models[role] === m.id ? 'border-amber-400 text-amber-300' : 'border-neutral-700 hover:bg-neutral-800'}`}
+                    className={`rounded border px-1.5 py-0.5 ${settings.models[role] === m.id ? 'border-accent text-accent' : 'border-neutral-700 hover:bg-neutral-800'}`}
                     aria-label={`Use ${m.id} as ${short}`}
                   >
                     {short}

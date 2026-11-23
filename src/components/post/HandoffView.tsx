@@ -36,7 +36,7 @@ export default function HandoffView() {
     return (
       <div className="mx-auto max-w-xl rounded border border-neutral-800 p-6 text-center">
         <p className="text-neutral-300">There is no blueprint yet, so there is nothing to hand off.</p>
-        <Link to={`/p/${project.id}/blueprint`} className="mt-3 inline-block rounded bg-amber-400 px-3 py-2 text-sm font-medium text-black">Go to Blueprint</Link>
+        <Link to={`/p/${project.id}/blueprint`} className="mt-3 inline-block rounded bg-accent px-3 py-2 text-sm font-medium text-accent-fg">Go to Blueprint</Link>
       </div>
     );
 

@@ -91,7 +91,7 @@ export default function AnchorCard({ anchor, projectId, siblings }: { anchor: St
           disabled={running || !geminiKey}
           title={geminiKey ? effective : 'Add a Gemini API key in Settings'}
           onClick={() => run(role)}
-          className="rounded border border-amber-400 bg-amber-400 px-2 py-1 text-xs font-medium text-black disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded border border-accent bg-accent px-2 py-1 text-xs font-medium text-accent-fg disabled:cursor-not-allowed disabled:opacity-40"
         >
           {current ? 'Regenerate' : 'Generate'}
         </button>

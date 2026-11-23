@@ -14,7 +14,7 @@ export default function ValidationBanner({ errors, warnings, sceneCount }: { err
       <span className={i.severity === 'error' ? 'text-red-400' : 'text-amber-400'} aria-hidden>{i.severity === 'error' ? '✕' : '!'}</span>
       <span>
         {i.scene !== undefined && (
-          <button type="button" onClick={() => jumpToScene(i.scene!)} className="mr-1 underline hover:text-white">Scene {i.scene}</button>
+          <button type="button" onClick={() => jumpToScene(i.scene!)} className="mr-1 underline hover:text-neutral-50">Scene {i.scene}</button>
         )}
         <span className="font-mono text-[11px] text-neutral-500">{i.code}</span> {i.message}
       </span>

@@ -1,4 +1,4 @@
-# AI Music Video Director & Storyboard Studio: Build Plan
+# GP Producer (AI music video planning and storyboard studio): Build Plan
 
 Status: **The app exists (see README.md and docs/USER_GUIDE.md); this plan is the original design. Song Spec Phase 1: reads Timed lyrics, writes Video sequence.**
 

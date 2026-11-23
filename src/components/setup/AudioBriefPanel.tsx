@@ -71,7 +71,7 @@ export default function AudioBriefPanel() {
               type="button"
               onClick={() => void generate()}
               disabled={busy || !geminiKey || !file}
-              className="rounded border border-amber-400 bg-amber-400 px-3 py-1.5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded border border-accent bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg disabled:cursor-not-allowed disabled:opacity-40"
             >
               {busy ? 'Gemini is listening…' : 'Generate with Gemini'}
             </button>

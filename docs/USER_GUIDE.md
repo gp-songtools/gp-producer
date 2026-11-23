@@ -1,6 +1,6 @@
-# Music Video Director: user guide
+# GP Producer: user guide
 
-Music Video Director helps you plan and produce an AI-generated music video for a song. It writes the creative plan, the image prompts and the video prompts, and keeps every scene's timing correct. **It does not make the video.** You make the clips yourself in Google Flow, using the prompts and images this app prepares, and then assemble them in a video editor.
+GP Producer helps you plan and produce an AI-generated music video for a song. It writes the creative plan, the image prompts and the video prompts, and keeps every scene's timing correct. **It does not make the video.** You make the clips yourself in Google Flow, using the prompts and images this app prepares, and then assemble them in a video editor.
 
 Everything runs in your browser. Your projects are stored on your own computer. The only things that leave it are the requests you start: to Anthropic (Claude, for the plan) and to Google (Gemini, for images and the optional audio brief).
 
@@ -270,7 +270,8 @@ Open **Settings** from the top right.
 | Your lyrics, vision text, the audio brief, scene prompts | Anthropic (Claude) | Generating or fixing a blueprint, revising a scene |
 | Image prompts and the anchor images used as references | Google (Gemini) | Generating anchors and frames |
 | Your song's audio file | Google (Gemini) | Only if you click **Generate with Gemini** |
-| Nothing | Anywhere else | The app has no server, no analytics and no account |
+| Page visits only | Cloudflare Web Analytics (cookie-free, shared by all GP Song Tools) | When the page loads. It never sees your projects, lyrics, audio or keys. See the suite's [Privacy & credits](https://gp-songtools.github.io/toolsmenu/privacy.html) page |
+| Nothing else | Anywhere else | The app has no server and no account |
 
 The app's security policy blocks connections to any other address.
 

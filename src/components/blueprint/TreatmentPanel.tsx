@@ -18,7 +18,7 @@ export default function TreatmentPanel({ treatment }: { treatment: Treatment }) 
       <dl className="mt-4 grid gap-2 sm:grid-cols-2">
         {FACETS.map(([k, label]) => (
           <div key={k} className="rounded border border-neutral-800 bg-neutral-950/60 p-2">
-            <dt className="text-xs font-medium uppercase tracking-wide text-amber-400/90">{label}</dt>
+            <dt className="text-xs font-medium uppercase tracking-wide text-accent">{label}</dt>
             <dd className="mt-0.5 text-xs text-neutral-300">{treatment.facets[k]}</dd>
           </div>
         ))}

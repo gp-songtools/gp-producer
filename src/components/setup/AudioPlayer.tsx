@@ -54,7 +54,7 @@ export default function AudioPlayer() {
           onDragOver={(e) => { e.preventDefault(); setOver(true); }}
           onDragLeave={() => setOver(false)}
           onDrop={onDrop}
-          className={`rounded border-2 border-dashed p-6 text-center text-sm ${over ? 'border-amber-400 bg-amber-950/20' : 'border-neutral-700'}`}
+          className={`rounded border-2 border-dashed p-6 text-center text-sm ${over ? 'border-accent bg-accent/10' : 'border-neutral-700'}`}
         >
           <p className="text-neutral-300">Drop an MP3 or WAV here to scrub and check timestamps by ear.</p>
           <button type="button" onClick={() => fileRef.current?.click()} className="mt-2 rounded border border-neutral-700 px-3 py-1 text-xs hover:bg-neutral-800">
@@ -103,7 +103,7 @@ export default function AudioPlayer() {
                   <button
                     type="button"
                     onClick={() => seek(l.t)}
-                    className={`flex w-full gap-3 px-2 py-1 text-left hover:bg-neutral-800 ${i === activeIdx ? 'bg-amber-950/40 text-amber-200' : ''}`}
+                    className={`flex w-full gap-3 px-2 py-1 text-left hover:bg-neutral-800 ${i === activeIdx ? 'bg-accent/15 text-accent' : ''}`}
                   >
                     <span className="font-mono text-xs text-neutral-500">{fmtPrecise(l.t)}</span>
                     <span className={isBackingVocal(l.text) ? 'italic text-neutral-400' : ''}>{l.text}</span>

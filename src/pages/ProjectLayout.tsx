@@ -32,7 +32,7 @@ export default function ProjectLayout() {
       <div className="mx-auto max-w-xl p-6">
         <h1 className="text-xl font-semibold">Project not found</h1>
         <p className="mt-2 text-neutral-400">It may have been deleted, or it was created in a different browser.</p>
-        <Link to="/" className="mt-4 inline-block rounded bg-amber-400 px-3 py-2 text-sm font-medium text-black">All projects</Link>
+        <Link to="/" className="mt-4 inline-block rounded bg-accent px-3 py-2 text-sm font-medium text-accent-fg">All projects</Link>
       </div>
     );
 

@@ -35,7 +35,7 @@ export default function ReadyChecklist() {
       </ul>
       <Link
         to={`/p/${project.id}/blueprint`}
-        className={`mt-4 block rounded px-3 py-2 text-center text-sm font-medium ${ready ? 'bg-amber-400 text-black' : 'border border-neutral-700 text-neutral-300 hover:bg-neutral-800'}`}
+        className={`mt-4 block rounded px-3 py-2 text-center text-sm font-medium ${ready ? 'bg-accent text-accent-fg' : 'border border-neutral-700 text-neutral-300 hover:bg-neutral-800'}`}
       >
         {ready ? 'Continue to Blueprint' : 'Go to Blueprint anyway'}
       </Link>

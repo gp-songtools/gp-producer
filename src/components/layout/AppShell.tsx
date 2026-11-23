@@ -28,7 +28,7 @@ export default function AppShell() {
     <div className="min-h-screen flex flex-col">
       <header className="no-print flex items-center justify-between border-b border-neutral-800 px-4 py-3">
         <Link to="/" className="font-semibold tracking-tight">
-          <span className="text-amber-400">▶</span> Music Video Director
+          <span className="text-accent">▶</span> GP Producer
         </Link>
         <div className="flex items-center gap-2">
           <Link to="/help" className="rounded border border-neutral-700 px-3 py-1 text-sm hover:bg-neutral-900">Help</Link>
@@ -43,6 +43,11 @@ export default function AppShell() {
       <main className="flex-1">
         <Outlet />
       </main>
+      <footer className="no-print flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-neutral-800 px-4 py-3 text-sm text-neutral-400">
+        <a href="https://gp-songtools.github.io/toolsmenu/privacy.html" target="_blank" rel="noopener" className="underline hover:text-neutral-100">Privacy &amp; credits</a>
+        <a href="https://gp-songtools.github.io/toolsmenu/" target="_blank" rel="noopener" className="underline hover:text-neutral-100">More GP Song Tools</a>
+        <a href="https://github.com/gp-songtools/gp-producer" target="_blank" rel="noopener" className="underline hover:text-neutral-100">Source</a>
+      </footer>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <LightboxHost />
     </div>

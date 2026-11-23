@@ -15,5 +15,5 @@ export default function Card({ title, optional, children, aside }: { title: stri
 }
 
 export const fieldInput =
-  'w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-amber-400';
+  'w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-accent';
 export const fieldLabel = 'mb-1 block text-xs font-medium text-neutral-400';

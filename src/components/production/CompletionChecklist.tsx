@@ -28,7 +28,7 @@ export default function CompletionChecklist({ scene }: { scene: Scene }) {
                 type="checkbox"
                 checked={scene.checklist?.[i.key] === true}
                 onChange={(e) => void setChecklist(scene.scene, i.key, e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-amber-400"
+                className="mt-0.5 h-4 w-4 accent-accent"
               />
               <span>
                 <span className="text-neutral-100">{i.label}</span>

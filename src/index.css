@@ -1,13 +1,42 @@
 @import "tailwindcss";
 
-:root { color-scheme: dark; }
+/* GP Producer's suite colour (--pr): dark #F87171, light #CE2222. accent-fg is the text colour on a filled accent. */
+@theme {
+  --color-accent: #F87171;
+  --color-accent-fg: #0F0F23;
+}
+
+:root { color-scheme: dark light; }
+
+/* Light theme: invert the neutral scale so bg-neutral-950 / text-neutral-100 / border-neutral-800 flip, and use darker
+   steps of the semantic colours so text keeps 4.5:1 on light surfaces. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-accent: #CE2222;
+    --color-accent-fg: #FFFFFF;
+    --color-neutral-50: #0a0a0a; --color-neutral-100: #171717; --color-neutral-200: #262626; --color-neutral-300: #404040;
+    --color-neutral-400: #525252; --color-neutral-500: #6b6b6b; --color-neutral-600: #858585; --color-neutral-700: #d4d4d4;
+    --color-neutral-800: #e5e5e5; --color-neutral-900: #f0f0f0; --color-neutral-950: #fafafa;
+    --color-amber-100: #78350f; --color-amber-200: #78350f; --color-amber-300: #92400e; --color-amber-400: #92400e;
+    --color-amber-700: #fcd34d; --color-amber-950: #fef3c7;
+    --color-emerald-100: #064e3b; --color-emerald-200: #065f46; --color-emerald-300: #047857; --color-emerald-400: #047857;
+    --color-emerald-700: #6ee7b7; --color-emerald-950: #d1fae5;
+    --color-red-100: #7f1d1d; --color-red-200: #7f1d1d; --color-red-300: #b91c1c; --color-red-400: #b91c1c;
+    --color-red-700: #fca5a5; --color-red-800: #fca5a5; --color-red-950: #fee2e2;
+    --color-sky-100: #0c4a6e; --color-sky-200: #075985; --color-sky-300: #0369a1;
+    --color-sky-800: #7dd3fc; --color-sky-900: #7dd3fc; --color-sky-950: #e0f2fe;
+    --color-violet-200: #5b21b6; --color-violet-300: #6d28d9;
+  }
+}
+
 body { @apply bg-neutral-950 text-neutral-100 antialiased; }
+:focus-visible { outline-color: var(--color-accent); }
 
 @media print {
   @page { margin: 12mm; }
   .no-print { display: none !important; }
   html, body { background: #fff !important; color: #000 !important; }
-  /* The app is dark on screen; on paper drop the dark fills and light text. Images and .print-keep (the timeline bar) keep their colours. */
+  /* On paper drop the screen fills and text colours. Images and .print-keep (the timeline bar) keep their colours. */
   body *:not(img):not(.print-keep):not(.print-keep *) {
     background: transparent !important;
     color: #111 !important;

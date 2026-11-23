@@ -10,7 +10,7 @@ function Thumb({ img, onUse }: { img: ImageRecord; onUse: () => void }) {
       onClick={onUse}
       title={`Use this version (${img.source === 'uploaded' ? 'uploaded' : img.model}, ${when})`}
       aria-label={`Use earlier version from ${when}`}
-      className="h-10 w-[4.5rem] shrink-0 overflow-hidden rounded border border-neutral-700 bg-black hover:border-amber-400"
+      className="h-10 w-[4.5rem] shrink-0 overflow-hidden rounded border border-neutral-700 bg-black hover:border-accent"
     >
       {url && <img src={url} alt="" className="h-full w-full object-cover" />}
     </button>

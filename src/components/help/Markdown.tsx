@@ -14,16 +14,16 @@ function Inlines({ items }: { items: Inline[] }) {
       {items.map((n, i) => {
         switch (n.type) {
           case 'text': return <span key={i}>{n.text}</span>;
-          case 'code': return <code key={i} className="rounded bg-neutral-800 px-1 py-0.5 text-[0.85em] text-amber-200">{n.text}</code>;
+          case 'code': return <code key={i} className="rounded bg-neutral-800 px-1 py-0.5 text-[0.85em] text-accent">{n.text}</code>;
           case 'bold': return <strong key={i} className="font-semibold text-neutral-100"><Inlines items={n.children} /></strong>;
           case 'italic': return <em key={i}><Inlines items={n.children} /></em>;
           case 'link': {
             const t = linkTarget(n.href);
             if (!t) return <span key={i}><Inlines items={n.children} /></span>;
             return t.kind === 'help' ? (
-              <Link key={i} to={t.to} className="text-amber-300 underline hover:text-amber-200"><Inlines items={n.children} /></Link>
+              <Link key={i} to={t.to} className="text-accent underline hover:brightness-125"><Inlines items={n.children} /></Link>
             ) : (
-              <a key={i} href={t.href} target="_blank" rel="noopener noreferrer" className="text-amber-300 underline hover:text-amber-200"><Inlines items={n.children} /></a>
+              <a key={i} href={t.href} target="_blank" rel="noopener noreferrer" className="text-accent underline hover:brightness-125"><Inlines items={n.children} /></a>
             );
           }
         }

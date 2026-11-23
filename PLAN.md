@@ -1,6 +1,6 @@
 # AI Music Video Director & Storyboard Studio: Build Plan
 
-Status: **REVISION 3, approved in principle; awaiting go-ahead to start M0. No application code or Vite scaffold exists yet.**
+Status: **The app exists (see README.md and docs/USER_GUIDE.md); this plan is the original design. Song Spec Phase 1: reads Timed lyrics, writes Video sequence.**
 
 **Changes in revision 2:** (a) Scene length rules replaced: base clip 10–15 s, optional extension 3–4 s, enforced as separate fields (§2.2a). (b) Three Gemini model roles: workhorse, hero and draft (§3.2). (c) Key-exposure risk and file-tag format accepted (§0).
 

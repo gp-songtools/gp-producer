@@ -554,7 +554,7 @@ All open questions are resolved:
 
 ---
 
-## 10. Song Spec — Phase 1 (done) / Phase 2 (to do)
+## 10. Song Spec — Phase 1 (done) / Phase 2 (steps 1–5 done)
 
 **Phase 1 (done)**
 - Song spec library v1.1.0 adds two sections: Timed lyrics (written by Framecut) and Video sequence (written by GP Producer).
@@ -563,4 +563,4 @@ All open questions are resolved:
 
 **Phase 2**
 - Step 3 (done): the Production tab's **Clip files** card matches downloaded clips to scenes and **Save clips to Drive** puts clips, latest images and the project .zip in the song's GP Song Tools folder (`clips/`, `images/`, `projects/`), via the shared `songdrive.js`. Clips stay in memory (not IndexedDB); `scene.clip` keeps name, size and Drive id.
-- To do: Framecut retrieves the clips and places them on its timeline in order using the Video sequence.
+- Framecut places the clips on its timeline in order using the Video sequence (**Place clips…** with local files, **Place clips from Drive…** from the song's `clips/` folder).

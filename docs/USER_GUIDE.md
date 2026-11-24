@@ -248,7 +248,7 @@ Whatever your lip-sync tool is, check one run: confirm it really stops lip-synci
 
 ## Assembling your video
 
-Outside the app: save your finished, correctly named clips to Google Drive or a folder, and put them in a video editor in order, over your song's audio. The file tags sort alphabetically into scene order. If you use a lip-sync tool, run it on the assembled video with `lyrics-for-lipsync.txt`.
+Outside the app: save your finished, correctly named clips to Google Drive or a folder, and put them in a video editor in order, over your song's audio. Framecut (another GP Song Tools app) can place them for you: after **Save clips to Drive** and saving the video sequence to the song spec, use **Place clips from Drive…** in Framecut (or **Place clips…** with the files). The file tags sort alphabetically into scene order. If you use a lip-sync tool, run it on the assembled video with `lyrics-for-lipsync.txt`.
 
 ## Your projects
 

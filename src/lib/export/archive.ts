@@ -55,7 +55,7 @@ export async function buildProjectArchive(i: ArchiveInput): Promise<ProjectArchi
       ...(i.project.backingMode ? { backingMode: i.project.backingMode } : {}),
       ...(i.project.tagSpelling ? { tagSpelling: i.project.tagSpelling } : {}),
     },
-    anchors: [...i.anchors].sort((a, b) => a.order - b.order).map((a, order) => ({ ...stripAnchor(a), order })),
+    anchors: [...i.anchors].sort((a, b) => a.order - b.order).map((a, order) => ({ ...stripAnchor(a), order, ...(a.useSheet ? { useSheet: true } : {}) })),
     scenes: scenes.map(({ projectId: _p, ...s }: Scene & { projectId?: string }) => (void _p, s)),
     images: i.images.map((im) => ({
       id: im.id,

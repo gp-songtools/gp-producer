@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { ApiError, ImageBlockedError } from '../lib/api/errors';
 import { generateAnchorImage, imagesForOwner, saveUploadedImage, UploadError } from '../lib/anchorImages';
+import { generateCharacterSheet } from '../lib/characterSheet';
 import * as db from '../lib/db';
 import { runPool } from '../lib/pool';
 import { generateSceneFrame, pickReferences, type AnchorLite, type SceneRef } from '../lib/sceneImages';
 import { resolveRole, type ModelRoles } from '../lib/settings';
-import { anchorOwner, sceneOwner, type ImageOwner, type ImageRecord } from '../types/project';
+import { anchorOwner, sceneOwner, sheetOwner, type ImageOwner, type ImageRecord } from '../types/project';
 import { useSettingsStore } from './settingsStore';
 
 /** `blocked`: Gemini declined or answered in text (retrying can differ). `upload`: your file was rejected. `error`: anything else. */
@@ -42,6 +43,8 @@ interface ImageState {
   generateMissing: (projectId: string, anchors: AnchorRef[]) => Promise<void>;
   /** Renders exactly these anchors (skipping any already generating), two at a time. Used to retry failures. */
   generateAnchors: (projectId: string, anchors: AnchorRef[]) => Promise<void>;
+  /** Makes a multi-view character sheet from the anchor's current image. The anchor image is left as it is. */
+  generateSheet: (projectId: string, anchor: { id: string; name: string }, role: keyof ModelRoles, labels?: boolean) => Promise<void>;
   generateFrame: (projectId: string, scene: SceneRef, anchors: AnchorLite[], role: keyof ModelRoles) => Promise<void>;
   /** Renders frames for the given scenes (the caller picks which), two at a time, with the Workhorse model. */
   generateFrames: (projectId: string, scenes: SceneRef[], anchors: AnchorLite[]) => Promise<void>;
@@ -195,6 +198,21 @@ export const useImageStore = create<ImageState>((set, get) => {
     generateMissing: async (projectId, anchors) => {
       const missing = anchors.filter((a) => imagesForOwner(get().images, anchorOwner(a.id)).length === 0);
       await get().generateAnchors(projectId, missing);
+    },
+
+    generateSheet: async (projectId, anchor, role, labels = false) => {
+      const { geminiKey, settings } = useSettingsStore.getState();
+      const model = settings.models[resolveRole(role, settings.draftMode)];
+      try {
+        await runJob(projectId, sheetOwner(anchor.id), async (signal) => {
+          const [source] = imagesForOwner(get().images, anchorOwner(anchor.id));
+          if (!source) throw new ApiError('Make or upload an image for this character first: the sheet is built from it.', null, 'no_source');
+          await generateCharacterSheet({ projectId, anchor, source, model, apiKey: geminiKey, labels, signal });
+          bumpUsage(model);
+        });
+      } catch {
+        /* the card shows the error */
+      }
     },
 
     generateFrame: async (projectId, scene, anchors, role) => {

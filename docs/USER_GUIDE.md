@@ -126,9 +126,23 @@ Anchors can have images. On each anchor card:
 - **Upgrade to Hero** re-renders with the best model; the earlier version is kept.
 - **Earlier versions** shows previous images; click one to make it current. The last three versions are kept.
 - **Download** saves the image, for example to attach in Flow.
+- **Make character sheet** (character anchors only) is described under [Character sheets](#character-sheets).
 - **Generate missing** renders every anchor that has no image yet, after asking you to confirm (each image is a real charge on your Gemini account).
 
 Generate the anchors **before** the storyboard frames, so the frames can use them as references.
+
+### Character sheets
+
+A single picture of a character shows one angle, and a video model has to invent the rest. A **character sheet** is one extra image of the same character from four angles (three-quarter front, side, back and a face close-up) so Flow and the storyboard frames have every view to work from.
+
+On a **character** anchor that has an image, click **Make character sheet**. It is built from the anchor's image, costs one image, and sits **beside** the anchor image: the anchor is never replaced. Both are shown side by side, and each has its own download button (**Download anchor**, **Download sheet**) so you can attach whichever you want in Flow.
+
+- **Add name and colour swatches** adds a title and a colour strip to the sheet. It is **off** by default, because text on a reference image can end up in your clips.
+- **Regenerate character sheet** makes a new one; the last three are kept under *Earlier versions*. **Remove sheet** deletes the current one.
+- Tick **Use the character sheet as this character's reference in storyboard frames** to send the sheet to Gemini instead of the single anchor image whenever a frame includes this character. It is off by default. Frames made before you change it will show *references changed*, so **Regenerate outdated** can redo them.
+- If you replace the anchor image later, the sheet shows **anchor changed**; regenerate it so it matches.
+
+Check the sheet carefully. The model has to invent everything the anchor image doesn't show (shoes, trousers, the back of a jacket), and those inventions become the character. Watch for colours drifting (black turning brown), the face looking older, and small details such as pins going missing. If something is wrong, regenerate, or fix the anchor image first.
 
 ### Storyboard frames
 
@@ -156,7 +170,7 @@ The Production tab shows **one scene at a time**, so you can work through Google
 
 For each scene, in this order:
 
-1. **Download the reference anchors** shown under *Reference anchors*, and attach them to your prompt in Flow as reference images.
+1. **Download the reference anchors** shown under *Reference anchors*, and attach them to your prompt in Flow as reference images. A character with a character sheet has two buttons, **Download anchor** and **Download sheet**: use whichever works better for that shot.
 2. Click **Copy prompt** on the *Google Flow base prompt* and paste it into Flow. Generate the clip.
 3. If the scene has an extension, click **Copy prompt** on the *Extension prompt*, paste it, and extend the clip. **Copy timeline mark** copies a note such as `Extend +4s: 00:24 to 00:28`, the point on the song's timeline the extension must reach.
 4. Download the finished clip.

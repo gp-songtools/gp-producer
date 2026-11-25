@@ -110,6 +110,12 @@ export async function replaceScenes(projectId: string, scenes: Scene[]): Promise
   await tx.done;
 }
 
+/** Writes one anchor (for example its "use the character sheet" choice) without touching the others. */
+export async function putAnchor(projectId: string, anchor: StoredAnchor): Promise<void> {
+  const d = await db();
+  await d.put('anchors', { ...anchor, projectId });
+}
+
 /** Writes one scene (a checklist tick, a revision) without touching the others. */
 export async function putScene(projectId: string, scene: Scene): Promise<void> {
   const d = await db();

@@ -370,3 +370,39 @@ describe('imageStore', () => {
     });
   });
 });
+
+
+describe('character sheet job', () => {
+  const barker = { id: 'character', name: 'Barker' };
+
+  it('builds the sheet from the anchor image, leaves the anchor alone, and counts one image', async () => {
+    const p = await setup();
+    await useImageStore.getState().generateAnchor(p.id, A, 'workhorse');
+    gen.fn.mockClear();
+    await useImageStore.getState().generateSheet(p.id, barker, 'hero', false);
+    const imgs = useImageStore.getState().images;
+    expect(imgs.map((i) => i.ownerKey).sort()).toEqual(['anchor:character', 'sheet:character']);
+    expect(imgs.find((i) => i.ownerKey === 'sheet:character')).toMatchObject({ kind: 'sheet' });
+    expect(gen.fn.mock.calls[0][0]).toMatchObject({ aspectRatio: '16:9', apiKey: 'GKEY' });
+    expect(gen.fn.mock.calls[0][0].references).toHaveLength(1);
+    expect(useImageStore.getState().jobs).toEqual({});
+    expect(Object.values(useImageStore.getState().usage).reduce((a, b) => a + b, 0)).toBe(2); // the anchor plus the sheet
+  });
+
+  it('refuses, on the sheet\'s own card, when the character has no image yet, without calling Gemini', async () => {
+    const p = await setup();
+    await useImageStore.getState().generateSheet(p.id, barker, 'workhorse');
+    expect(gen.fn).not.toHaveBeenCalled();
+    expect(useImageStore.getState().jobs['sheet:character']).toMatchObject({ status: 'error', message: expect.stringMatching(/Make or upload an image/) });
+  });
+
+  it('shows Gemini\'s refusal on the sheet card and keeps what was there', async () => {
+    const p = await setup();
+    await useImageStore.getState().generateAnchor(p.id, A, 'workhorse');
+    await useImageStore.getState().generateSheet(p.id, barker, 'workhorse');
+    gen.fn.mockImplementationOnce(async () => { throw new ImageBlockedError('declined', 'SAFETY'); });
+    await useImageStore.getState().generateSheet(p.id, barker, 'workhorse');
+    expect(useImageStore.getState().jobs['sheet:character']).toMatchObject({ status: 'error', kind: 'blocked' });
+    expect(useImageStore.getState().images.filter((i) => i.ownerKey === 'sheet:character')).toHaveLength(1);
+  });
+});

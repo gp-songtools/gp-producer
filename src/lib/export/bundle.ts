@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { extForMime } from '../../hooks/useBlobUrl';
 import type { Scene } from '../../types/blueprint';
 import type { BackingMode, TagSpelling, ImageOwner, ImageRecord, Project, StoredAnchor } from '../../types/project';
-import { anchorOwner, sceneOwner } from '../../types/project';
+import { anchorOwner, sceneOwner, sheetOwner } from '../../types/project';
 import { stripAnchor, stripScene } from '../blueprint';
 import { slugName } from '../download';
 import type { StopTag } from '../brief';
@@ -54,6 +54,8 @@ export async function buildBundle(i: BundleInput): Promise<Bundle> {
   for (const a of [...i.anchors].sort((x, y) => x.order - y.order)) {
     const img = i.images.get(anchorOwner(a.id));
     if (img) add(`anchors/${slugName(a.id, 'anchor')}.${extForMime(img.mime)}`, new Uint8Array(await img.blob.arrayBuffer()));
+    const sheet = i.images.get(sheetOwner(a.id));
+    if (sheet) add(`anchors/${slugName(a.id, 'anchor')}_sheet.${extForMime(sheet.mime)}`, new Uint8Array(await sheet.blob.arrayBuffer()));
   }
   for (const s of scenes) {
     const img = i.images.get(sceneOwner(s.scene));
@@ -64,7 +66,7 @@ export async function buildBundle(i: BundleInput): Promise<Bundle> {
     schema_version: 1,
     project: { name: i.project.name, runtime_sec: i.project.runtimeSec },
     treatment: i.project.treatment,
-    anchors: i.anchors.map(stripAnchor),
+    anchors: i.anchors.map((a) => ({ ...stripAnchor(a), ...(a.useSheet ? { use_character_sheet: true } : {}) })),
     scenes: scenes.map((s) => ({ ...stripScene(s), file_tag: buildFileTag(s) })),
   };
   add('ledger.json', `${JSON.stringify(json, null, 2)}\n`);

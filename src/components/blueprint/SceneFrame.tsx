@@ -75,8 +75,9 @@ export default function SceneFrame({ scene, anchors, allScenes, projectId }: { s
       <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Attached reference anchors">
         {scene.anchor_ids.map((id) => {
           const a = anchors.find((x) => x.id === id);
-          const [img] = imagesForOwner(images, `anchor:${id}`);
-          return <AnchorChip key={id} name={a?.name ?? id} image={img} state={state(id)} />;
+          const pick = sel.used.find((u) => u.anchor.id === id);
+          const [img] = pick ? [pick.image] : imagesForOwner(images, `anchor:${id}`);
+          return <AnchorChip key={id} name={a?.name ?? id} image={img} state={state(id)} sheet={pick?.viaSheet} />;
         })}
       </div>
       {sel.missing.length > 0 && (

@@ -23,6 +23,8 @@ interface ProjectState {
   setBlueprint: (bp: { treatment: Treatment; anchors: BlueprintAnchor[]; scenes: Scene[] }, run?: RunRecord) => Promise<void>;
   /** Replaces the scenes (snap/repair, edits). Saves immediately. */
   setScenes: (scenes: Scene[]) => Promise<void>;
+  /** Character anchors: use (or stop using) the character sheet as the reference in storyboard frames. */
+  setAnchorUseSheet: (anchorId: string, value: boolean) => Promise<void>;
   /** Ticks or clears one checklist item on a scene and saves just that scene. */
   setChecklist: (sceneNo: number, key: ChecklistKey, value: boolean) => Promise<void>;
   /** Sets a scene's clip facts (name, size, Drive id) and ticks the given checklist items, saving just that scene. */
@@ -80,7 +82,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const p = get().project;
       if (!p) return;
       const next = { ...p, treatment, updatedAt: Date.now() };
-      await db.replaceBlueprint(p.id, anchors, scenes);
+      // The "use the character sheet" choice belongs to the anchor id, and sheet images are kept like anchor images.
+      const useSheet = new Set(get().anchors.filter((a) => a.useSheet).map((a) => a.id));
+      const withChoice = anchors.map((a) => (useSheet.has(a.id) ? { ...a, useSheet: true } : a));
+      await db.replaceBlueprint(p.id, withChoice, scenes);
       // Frames for scenes that no longer exist would be orphaned (and invisible); drop them.
       await db.deleteSceneImagesAbove(p.id, scenes.length);
       await db.putProject(next);
@@ -89,7 +94,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       clearTimeout(timer);
       set({
         project: next,
-        anchors: anchors.map((a, order) => ({ ...a, projectId: p.id, order })),
+        anchors: withChoice.map((a, order) => ({ ...a, projectId: p.id, order })),
         scenes: scenes.map((s) => ({ ...s, projectId: p.id })),
       });
     },
@@ -99,6 +104,17 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (!p) return;
       await db.replaceScenes(p.id, scenes);
       set({ scenes: scenes.map((s) => ({ ...s, projectId: p.id })) });
+    },
+
+    setAnchorUseSheet: async (anchorId, value) => {
+      const p = get().project;
+      const cur = get().anchors.find((a) => a.id === anchorId);
+      if (!p || !cur) return;
+      const { useSheet: _drop, ...rest } = cur;
+      void _drop;
+      const next: typeof cur = value ? { ...rest, useSheet: true } : rest;
+      set({ anchors: get().anchors.map((a) => (a.id === anchorId ? next : a)) });
+      await db.putAnchor(p.id, next);
     },
 
     setChecklist: async (sceneNo, key, value) => {

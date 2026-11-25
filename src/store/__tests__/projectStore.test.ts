@@ -170,3 +170,35 @@ describe('revisions', () => {
     expect(stored.checklist).toEqual({ downloaded: true, tagged: true });
   });
 });
+
+describe('use the character sheet', () => {
+  const char = { id: 'character', name: 'Character', category: 'character' as const, prompt: 'x' };
+  it('saves the choice on the anchor and can turn it off', async () => {
+    const p = await db.createProject('P');
+    await db.replaceBlueprint(p.id, [char, { id: 'env', name: 'Env', category: 'environment', prompt: 'y' }], goodLedger());
+    const st = useProjectStore.getState();
+    await st.load(p.id);
+    await st.setAnchorUseSheet('character', true);
+    expect(useProjectStore.getState().anchors.find((a) => a.id === 'character')?.useSheet).toBe(true);
+    expect(useProjectStore.getState().anchors.find((a) => a.id === 'env')?.useSheet).toBeUndefined();
+    expect((await db.getAnchors(p.id)).find((a) => a.id === 'character')?.useSheet).toBe(true);
+    await st.setAnchorUseSheet('character', false);
+    expect((await db.getAnchors(p.id)).find((a) => a.id === 'character')?.useSheet).toBeUndefined();
+    await st.setAnchorUseSheet('nope', true); // unknown anchors are ignored
+    expect((await db.getAnchors(p.id)).some((a) => a.useSheet)).toBe(false);
+  });
+
+  it('keeps the choice for anchors with the same id when a new blueprint replaces the old', async () => {
+    const p = await db.createProject('P');
+    await db.replaceBlueprint(p.id, [char], goodLedger());
+    const st = useProjectStore.getState();
+    await st.load(p.id);
+    await st.setAnchorUseSheet('character', true);
+    await st.setBlueprint({ treatment, anchors: [char, { id: 'prop', name: 'Prop', category: 'prop', prompt: 'z' }], scenes: goodLedger() });
+    const saved = await db.getAnchors(p.id);
+    expect(saved.find((a) => a.id === 'character')?.useSheet).toBe(true);
+    expect(saved.find((a) => a.id === 'prop')?.useSheet).toBeUndefined();
+    await st.setBlueprint({ treatment, anchors: [{ ...char, id: 'someone_else' }], scenes: goodLedger() });
+    expect((await db.getAnchors(p.id))[0].useSheet).toBeUndefined();
+  });
+});

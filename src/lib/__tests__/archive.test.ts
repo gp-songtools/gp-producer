@@ -176,3 +176,20 @@ describe('sniffImageMime', () => {
     expect(sniffImageMime(new Uint8Array())).toBeNull();
   });
 });
+
+
+describe('character sheets in the archive', () => {
+  it('round-trips a sheet image and the use-sheet choice, with the reference to the anchor image remapped', async () => {
+    const p = await db.createProject('Sheets');
+    await db.replaceBlueprint(p.id, [{ id: 'character', name: 'Character', category: 'character', prompt: 'x', useSheet: true } as never], goodLedger());
+    await db.putImage(img(p.id, 'anchor1', 'anchor:character', PNG, 1));
+    await db.putImage(img(p.id, 'sheet1', 'sheet:character', Uint8Array.from([...PNG, 5]), 2, { kind: 'sheet', refImageIds: ['anchor1'] }));
+    const copy = await roundTrip(p.id);
+    expect((await db.getAnchors(copy.id))[0].useSheet).toBe(true);
+    const latest = await db.latestImages(copy.id);
+    const sheet = latest.get('sheet:character')!;
+    expect(sheet.kind).toBe('sheet');
+    expect(new Uint8Array(await sheet.blob.arrayBuffer())).toEqual(Uint8Array.from([...PNG, 5]));
+    expect(sheet.refImageIds).toEqual([latest.get('anchor:character')!.id]);
+  });
+});

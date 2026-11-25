@@ -11,8 +11,8 @@ const dim = z.number().int().positive().max(20_000);
 export const imageMetaSchema = z.object({
   /** Also the file name inside `images/`, so it is restricted to safe characters. */
   id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
-  ownerKey: z.string().regex(/^(anchor:.{1,80}|scene:\d{1,3})$/),
-  kind: z.enum(['anchor', 'keyframe']),
+  ownerKey: z.string().regex(/^(anchor:.{1,80}|sheet:.{1,80}|scene:\d{1,3})$/),
+  kind: z.enum(['anchor', 'keyframe', 'sheet']),
   mime: z.enum(IMAGE_MIMES),
   width: dim,
   height: dim,
@@ -74,7 +74,7 @@ export const archiveSchema = z.object({
   version: z.literal(ARCHIVE_VERSION),
   exportedAt: z.number(),
   project: projectSchema,
-  anchors: z.array(anchorSchema.extend({ order: z.number().int().optional() })),
+  anchors: z.array(anchorSchema.extend({ order: z.number().int().optional(), useSheet: z.boolean().optional() })),
   scenes: z.array(storedSceneSchema),
   images: z.array(imageMetaSchema),
   runs: z.array(runSchema).default([]),

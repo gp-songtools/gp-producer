@@ -1,5 +1,5 @@
 import { keyframeImagePrompt } from '../prompts/imagePrompts';
-import { sceneOwner, type ImageRecord } from '../types/project';
+import { sceneOwner, sheetOwner, type ImageRecord } from '../types/project';
 import { generateImage, type ImageSize, type ReferenceImage } from './api/gemini';
 import { imagesForOwner, isStale, KEEP_VERSIONS, type Deps } from './anchorImages';
 import * as db from './db';
@@ -9,6 +9,8 @@ import { anchorOwner } from '../types/project';
 export interface AnchorLite {
   id: string;
   name: string;
+  /** Use the anchor's character sheet, when it has one, as the reference instead of its single image. */
+  useSheet?: boolean;
 }
 
 export interface SceneRef {
@@ -20,6 +22,8 @@ export interface SceneRef {
 export interface RefPick {
   anchor: AnchorLite;
   image: ImageRecord;
+  /** The image is the anchor's character sheet. */
+  viaSheet?: boolean;
 }
 
 export interface RefSelection {
@@ -43,9 +47,11 @@ export function pickReferences(scene: Pick<SceneRef, 'anchor_ids'>, anchors: Anc
       out.unknown.push(id);
       continue;
     }
+    const [sheet] = a.useSheet ? imagesForOwner(images, sheetOwner(id)) : [];
     const [img] = imagesForOwner(images, anchorOwner(id));
-    if (!img) out.missing.push(a);
-    else if (out.used.length < maxRefs) out.used.push({ anchor: a, image: img });
+    const pick = sheet ?? img;
+    if (!pick) out.missing.push(a);
+    else if (out.used.length < maxRefs) out.used.push({ anchor: a, image: pick, ...(sheet ? { viaSheet: true } : {}) });
     else out.dropped.push(a);
   }
   return out;
@@ -92,7 +98,7 @@ export async function generateSceneFrame(o: GenerateFrameOptions): Promise<Image
   const references: ReferenceImage[] = await Promise.all(
     o.refs.map(async (r) => {
       const p = await prepareCached(r.image, prepare);
-      return { label: r.anchor.name, mimeType: p.mimeType, data: p.data };
+      return { label: r.viaSheet ? `${r.anchor.name} (character sheet: front, side, back and face views of the same character)` : r.anchor.name, mimeType: p.mimeType, data: p.data };
     }),
   );
   const img = await generate({

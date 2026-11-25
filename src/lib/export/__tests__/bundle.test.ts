@@ -18,6 +18,7 @@ const images = new Map<ImageOwner, ImageRecord>([
   ['anchor:character', img('anchor:character', 'CHARPNG')],
   ['scene:1', img('scene:1', 'KF1', 'image/jpeg')],
   ['scene:2', img('scene:2', 'KF2')],
+  ['sheet:character', img('sheet:character', 'SHEETPNG')],
 ]);
 
 const open = async (over = {}) => {
@@ -32,6 +33,7 @@ describe('buildBundle', () => {
     expect(b.filename).toBe('My-Song-v2-export.zip');
     expect(Object.keys(zip.files).filter((n) => !n.endsWith('/')).sort()).toEqual([
       'My-Song-v2/anchors/character.png',
+      'My-Song-v2/anchors/character_sheet.png',
       'My-Song-v2/keyframes/01_Intro_00-12.jpg',
       'My-Song-v2/keyframes/02_Verse1A_12-25.png',
       'My-Song-v2/ledger.json',
@@ -39,13 +41,14 @@ describe('buildBundle', () => {
       'My-Song-v2/lipsync-handoff.txt',
       'My-Song-v2/lyrics-for-lipsync.txt',
     ]);
-    expect(b.files).toHaveLength(7);
+    expect(b.files).toHaveLength(8);
   });
 
   it('stores the image bytes unchanged', async () => {
     const { zip } = await open();
     expect(await zip.file('My-Song-v2/keyframes/02_Verse1A_12-25.png')!.async('string')).toBe('KF2');
     expect(await zip.file('My-Song-v2/anchors/character.png')!.async('string')).toBe('CHARPNG');
+    expect(await zip.file('My-Song-v2/anchors/character_sheet.png')!.async('string')).toBe('SHEETPNG');
   });
 
   it('writes ledger.json with scenes in order, prompts and file tags, and no client-only fields', async () => {

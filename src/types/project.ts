@@ -42,19 +42,26 @@ export interface Project {
   treatment: Treatment | null;
 }
 
-export type StoredAnchor = BlueprintAnchor & { projectId: string; order: number };
+export type StoredAnchor = BlueprintAnchor & {
+  projectId: string;
+  order: number;
+  /** Character anchors: send the character sheet instead of the single anchor image as this anchor's reference in storyboard frames. */
+  useSheet?: boolean;
+};
 export type StoredScene = Scene & { projectId: string };
 
 /** What an image belongs to: an anchor (by its id, so it survives a re-blueprint) or a scene (by number). */
-export type ImageOwner = `anchor:${string}` | `scene:${number}`;
+export type ImageOwner = `anchor:${string}` | `scene:${number}` | `sheet:${string}`;
 export const anchorOwner = (id: string): ImageOwner => `anchor:${id}`;
+/** A character anchor's multi-view character sheet (kept beside the anchor image, never replacing it). */
+export const sheetOwner = (anchorId: string): ImageOwner => `sheet:${anchorId}`;
 export const sceneOwner = (n: number): ImageOwner => `scene:${n}`;
 
 export interface ImageRecord {
   id: string;
   projectId: string;
   ownerKey: ImageOwner;
-  kind: 'anchor' | 'keyframe';
+  kind: 'anchor' | 'keyframe' | 'sheet';
   blob: Blob;
   mime: string;
   width: number;
@@ -64,7 +71,7 @@ export interface ImageRecord {
   /** The prompt used, or null for an upload. */
   prompt: string | null;
   source: 'generated' | 'uploaded';
-  /** For scene frames: the anchor image ids sent as references, so a later anchor change can be detected. */
+  /** For scene frames and sheets: the image ids sent as references, so a later change can be detected. */
   refImageIds?: string[];
   createdAt: number;
 }

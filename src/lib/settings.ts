@@ -47,8 +47,18 @@ export const DEFAULT_MODELS: ModelRoles = {
   draft: 'gemini-3.1-flash-lite-image',
 };
 
-/** A text model that accepts audio. Unverified against your key: use "Test key & list models" in Settings to pick another. */
-export const DEFAULT_BRIEF_MODEL = 'gemini-2.5-pro';
+/** Models suggested for listening to the song and writing the audio brief. Names come from the app's author; "Test key & list models" shows what your own key can use. */
+export const BRIEF_MODEL_PRESETS = [
+  { id: 'gemini-4-hydrogen', label: 'Fast and cost-efficient; handles long audio' },
+  { id: 'gemini-3.8-flash', label: 'Fast and cost-efficient; handles long audio' },
+  { id: 'gemini-4-argon', label: 'Heavier reasoning, for complex analysis' },
+  { id: 'gemini-4-carbon', label: 'Heavier reasoning, for complex analysis' },
+] as const;
+
+export const DEFAULT_BRIEF_MODEL = 'gemini-4-hydrogen';
+
+/** Earlier defaults that can't take audio. A saved setting with one of these is replaced by the current default. */
+const RETIRED_BRIEF_MODELS = ['gemini-2.5-pro'];
 
 export const DEFAULT_SETTINGS: Settings = {
   claudeModel: 'claude-sonnet-5-5',
@@ -76,7 +86,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       hero: str(m.hero, DEFAULT_MODELS.hero),
       draft: str(m.draft, DEFAULT_MODELS.draft),
     },
-    briefModel: str(o.briefModel, DEFAULT_BRIEF_MODEL),
+    briefModel: RETIRED_BRIEF_MODELS.includes(str(o.briefModel, '')) ? DEFAULT_BRIEF_MODEL : str(o.briefModel, DEFAULT_BRIEF_MODEL),
     draftMode: o.draftMode === true,
     maxAnchorsPerScene: Number.isInteger(n) ? Math.min(MAX_ANCHORS_LIMIT, Math.max(1, n)) : DEFAULT_SETTINGS.maxAnchorsPerScene,
   };

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError, ImageBlockedError } from '../../lib/api/errors';
 import { generateImage, listModels, type GeminiModel } from '../../lib/api/gemini';
 import { imageDimensions, isWidescreen, type Dimensions } from '../../lib/image';
-import { DEFAULT_BRIEF_MODEL, DEFAULT_MODELS, MAX_ANCHORS_LIMIT, type ModelRoles } from '../../lib/settings';
+import { BRIEF_MODEL_PRESETS, DEFAULT_BRIEF_MODEL, DEFAULT_MODELS, MAX_ANCHORS_LIMIT, type ModelRoles } from '../../lib/settings';
 import { useSettingsStore } from '../../store/settingsStore';
 
 const input = 'w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm outline-none focus:border-amber-400';
@@ -109,7 +109,10 @@ export default function GeminiModels() {
 
       <div>
         <label htmlFor="model-brief" className={label}>Audio brief model (listens to your song; text output)</label>
-        <datalist id="gemini-text-model-ids">{models.filter((m) => !m.isImage).map((m) => <option key={m.id} value={m.id}>{m.displayName}</option>)}</datalist>
+        <datalist id="gemini-text-model-ids">
+          {BRIEF_MODEL_PRESETS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          {models.filter((m) => !m.isImage && !BRIEF_MODEL_PRESETS.some((p) => p.id === m.id)).map((m) => <option key={m.id} value={m.id}>{m.displayName}</option>)}
+        </datalist>
         <input
           id="model-brief"
           key={settings.briefModel}
@@ -120,6 +123,14 @@ export default function GeminiModels() {
           spellCheck={false}
           onBlur={(e) => e.target.value.trim() !== settings.briefModel && updateSettings({ briefModel: e.target.value })}
         />
+        <div className="mt-1 flex flex-wrap items-center gap-1" aria-label="Suggested audio brief models">
+          {BRIEF_MODEL_PRESETS.map((m) => (
+            <button key={m.id} type="button" title={m.label} onClick={() => updateSettings({ briefModel: m.id })} className={`rounded border px-1.5 py-0.5 text-xs ${settings.briefModel === m.id ? 'border-amber-400 text-amber-300' : 'border-neutral-700 hover:bg-neutral-800'}`}>
+              {m.id}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-neutral-500">The first two are fast and cost-efficient and handle long audio. The last two are for heavier reasoning over your audio.</p>
         {listing.status === 'ok' && (
           <p className={`mt-1 text-xs ${known.has(settings.briefModel) ? 'text-emerald-400' : 'text-amber-300'}`}>
             {known.has(settings.briefModel) ? 'Available to your key.' : "Not in your key's model list. Pick a text model that accepts audio."}

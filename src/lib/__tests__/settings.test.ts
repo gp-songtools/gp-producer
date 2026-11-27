@@ -142,3 +142,20 @@ describe('briefModel', () => {
     expect(sanitizeSettings({ briefModel: 7 }).briefModel).toBe(DEFAULT_BRIEF_MODEL);
   });
 });
+
+
+describe('audio brief model', () => {
+  it('defaults to a model that takes audio, and offers the four suggested ones', async () => {
+    const { BRIEF_MODEL_PRESETS, DEFAULT_BRIEF_MODEL } = await import('../settings');
+    expect(DEFAULT_BRIEF_MODEL).toBe('gemini-4-hydrogen');
+    expect(BRIEF_MODEL_PRESETS.map((m) => m.id)).toEqual(['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-4-argon', 'gemini-4-carbon']);
+    expect(BRIEF_MODEL_PRESETS.some((m) => m.id === DEFAULT_BRIEF_MODEL)).toBe(true);
+  });
+  it('replaces the retired default that could not take audio, but keeps any other choice', async () => {
+    const { DEFAULT_BRIEF_MODEL } = await import('../settings');
+    expect(sanitizeSettings({ briefModel: 'gemini-2.5-pro' }).briefModel).toBe(DEFAULT_BRIEF_MODEL);
+    expect(sanitizeSettings({ briefModel: ' gemini-2.5-pro ' }).briefModel).toBe(DEFAULT_BRIEF_MODEL);
+    expect(sanitizeSettings({ briefModel: 'gemini-4-carbon' }).briefModel).toBe('gemini-4-carbon');
+    expect(sanitizeSettings({ briefModel: 'my-own-model' }).briefModel).toBe('my-own-model');
+  });
+});

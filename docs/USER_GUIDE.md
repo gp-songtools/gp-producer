@@ -253,7 +253,7 @@ Open **Settings** from the top right.
 - **API keys:** your Anthropic and Gemini keys, with **Forget keys** to remove both. See the safety section below.
 - **Claude model and reasoning effort:** the model that writes the plan, and how much it thinks. Higher effort costs more and takes longer; "Model default" sends nothing and uses the model's own default.
 - **Gemini image models:** three roles. *Workhorse* is the everyday model for anchors and frames, *Hero* is for the best quality and strict continuity, *Draft* is quick and cheap. The names are just suggestions: use **Test key & list models** to see which models your key can use, assign one to each role, and click **Test** next to a role to render a real test image on your account.
-- **Audio brief model:** the Gemini model that listens to your song. It must accept audio and reply with text.
+- **Audio brief model:** the Gemini model that listens to your song. It must accept audio and reply with text. The default is `gemini-4-hydrogen`. Buttons under the box suggest four: `gemini-4-hydrogen` and `gemini-3.8-flash` (fast and cost-efficient, good with long audio), and `gemini-4-argon` and `gemini-4-carbon` (heavier reasoning, for a more careful analysis). Names change over time, so **Test key & list models** shows what your own key can use. An older saved setting of `gemini-2.5-pro`, which can't take audio, is switched to the default automatically.
 - **Max reference anchors per scene keyframe:** how many anchor images are sent with each storyboard frame (1 to 6, default 3).
 - **Storage:** usage, and a request for persistent storage.
 
@@ -310,7 +310,7 @@ Claude and Gemini charge for what you use: generating a blueprint, every image, 
 
 - **Button disabled:** it needs a Gemini key and a song loaded under **Local audio** (re-add it after a reload).
 - **"too large":** the limit for sending directly is about 14 MB. Export a smaller file, such as a 128 kbps MP3, or use the manual route.
-- **Model not found:** change the **Audio brief model** in Settings.
+- **Model not found, or it won't take audio:** change the **Audio brief model** in Settings to one of the suggested models, or one from **Test key & list models**.
 
 ### Projects and storage
 

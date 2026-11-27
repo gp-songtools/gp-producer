@@ -3,6 +3,7 @@ import { setupReadiness } from '../../lib/setup';
 import { useAudioStore } from '../../store/audioStore';
 import { useProjectStore } from '../../store/projectStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useUiStore } from '../../store/uiStore';
 
 export default function ReadyChecklist() {
   const project = useProjectStore((s) => s.project!);
@@ -28,6 +29,7 @@ export default function ReadyChecklist() {
               <span className={i.done ? 'text-neutral-300' : ''}>{i.label}</span>
               {!i.required && <span className="ml-1 text-xs text-neutral-500">optional</span>}
               {!i.done && i.hint && <span className="block text-xs text-neutral-500">{i.hint}</span>}
+              {!i.done && i.id === 'key' && <button type="button" onClick={() => useUiStore.getState().openSettings()} className="mt-1 rounded border border-neutral-700 px-2 py-0.5 text-xs hover:bg-neutral-800">Open Settings</button>}
             </span>
             <span className="sr-only">{i.done ? 'done' : 'not done'}</span>
           </li>

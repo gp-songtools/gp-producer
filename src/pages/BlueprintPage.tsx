@@ -13,6 +13,7 @@ import { setupReadiness } from '../lib/setup';
 import { SCENE_RULES } from '../lib/ledger/rules';
 import { useProjectStore } from '../store/projectStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { useUiStore } from '../store/uiStore';
 
 export default function BlueprintPage() {
   const project = useProjectStore((s) => s.project!);
@@ -51,7 +52,10 @@ export default function BlueprintPage() {
           <ul className="mt-1 list-disc pl-5 text-xs">
             {missing.map((m) => <li key={m.id}>{m.label}{m.hint ? `: ${m.hint}` : ''}</li>)}
           </ul>
-          <Link to={`/p/${project.id}/setup`} className="mt-2 inline-block text-xs underline">Go to Setup</Link>
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+            <Link to={`/p/${project.id}/setup`} className="underline">Go to Setup</Link>
+            {missing.some((m) => m.id === 'key') && <button type="button" onClick={() => useUiStore.getState().openSettings()} className="rounded border border-amber-600 px-2 py-1 hover:bg-amber-900/40">Open Settings</button>}
+          </div>
         </div>
       )}
 

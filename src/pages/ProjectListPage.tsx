@@ -4,6 +4,8 @@ import * as db from '../lib/db';
 import { downloadBlob } from '../lib/download';
 import { ImportError, importProjectArchive } from '../lib/import';
 import { exportProjectArchive } from '../lib/projectArchive';
+import { isQuotaError } from '../lib/storageErrors';
+import { useStorageStore } from '../store/storageStore';
 import type { Project } from '../types/project';
 
 const btn = 'rounded border border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-800';
@@ -25,20 +27,36 @@ export default function ProjectListPage() {
   }, []);
   useEffect(() => void refresh(), [refresh]);
 
-  const create = async () => {
-    const p = await db.createProject();
-    navigate(`/p/${p.id}/setup`);
+  /** Runs a storage action; a failure is shown on the page instead of being lost. */
+  const attempt = async (what: string, fn: () => Promise<void>) => {
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      const full = isQuotaError(e);
+      setError(full ? `Couldn't ${what}: your browser's storage is full. Free some space (Settings, Storage) and try again.` : `Couldn't ${what}: ${e instanceof Error ? e.message : String(e)}`);
+      if (full) useStorageStore.getState().report(e);
+    }
   };
+
+  const create = () =>
+    attempt('create the project', async () => {
+      const p = await db.createProject();
+      navigate(`/p/${p.id}/setup`);
+    });
   const rename = async (p: Project) => {
     const name = window.prompt('Project name', p.name)?.trim();
     if (!name || name === p.name) return;
-    await db.putProject({ ...p, name, updatedAt: Date.now() });
-    await refresh();
+    await attempt('rename the project', async () => {
+      await db.putProject({ ...p, name, updatedAt: Date.now() });
+      await refresh();
+    });
   };
-  const duplicate = async (p: Project) => {
-    await db.duplicateProject(p.id);
-    await refresh();
-  };
+  const duplicate = (p: Project) =>
+    attempt('duplicate the project', async () => {
+      await db.duplicateProject(p.id);
+      await refresh();
+    });
   const exportOne = async (p: Project) => {
     setBusy(p.id);
     setError(null);
@@ -68,8 +86,10 @@ export default function ProjectListPage() {
   };
   const remove = async (p: Project) => {
     if (!window.confirm(`Delete "${p.name}" and all its scenes and images? This can't be undone.`)) return;
-    await db.deleteProject(p.id);
-    await refresh();
+    await attempt('delete the project', async () => {
+      await db.deleteProject(p.id);
+      await refresh();
+    });
   };
 
   return (

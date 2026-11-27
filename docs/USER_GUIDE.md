@@ -80,7 +80,7 @@ Gemini can be a few seconds off on timestamps, so read the brief over. The **sin
 
 ### Ready for Blueprint?
 
-The checklist on the right shows what is still needed: lyrics, runtime, a vision, and your Anthropic key are required; the brief and the audio are optional. You can go to Blueprint early, but Claude can't write the plan until the required items are done.
+The checklist on the right shows what is still needed: lyrics, runtime, a vision, and your Anthropic key are required; the brief and the audio are optional. You can go to Blueprint early, but Claude can't write the plan until the required items are done. If the key is the missing item, **Open Settings** takes you straight there.
 
 ## Blueprint tab
 
@@ -244,6 +244,8 @@ The project list (click the app's name, top left) lets you **New project**, **Re
 
 - **Clearing site data, using a private window or switching browsers loses your projects.** Use **Export whole project** regularly.
 - Settings shows how much storage you are using and offers **Request persistent storage**, which asks the browser not to delete your projects when disk space runs low.
+- **Running out of room.** Images are the big part. When your browser's storage is more than 80% full, a yellow bar says so. If a save fails because it is full, a red bar says your latest changes were **not saved**. They are still on screen, but only in memory, so don't close the tab: click **Export a backup**, free some space with **Free space…** (Settings, Storage), and then **Try saving again**.
+- **Free space** in Settings shows how many *older image versions* you have across all your projects and offers **Delete older versions**. That removes the "Earlier versions" history only; the current image of every anchor, character sheet and storyboard frame is kept. Deleting a project you no longer need frees more.
 - Two browsers or two computers don't share projects. Move one with export and import.
 
 ## Settings reference
@@ -314,6 +316,10 @@ Claude and Gemini charge for what you use: generating a blueprint, every image, 
 
 ### Projects and storage
 
+- **A red bar says my changes were not saved:** the browser's storage is full, or it is refusing to save (a private window, or site data turned off). Your edits are still on screen. Click **Export a backup**, then **Free space…**, then **Try saving again**. See [Your projects](#your-projects).
+- **"Gemini made the image, but your browser has no room to keep it":** the image was generated and charged but couldn't be stored. Free space, then generate it again.
+- **"Something went wrong on this page":** a page crashed while drawing. Your saved work is not affected. Click **Try again**, go to another tab, or reload. If it keeps happening, export a backup and report the message shown.
+- **"Couldn't open this project":** the browser wouldn't let the app read its saved data. Try **Try again**, a normal (non-private) window, or restore a backup with **Import project…**.
 - **My projects are gone:** the browser's site data was cleared, or you are in a different browser or a private window. Restore from an export.
 - **My keys disappeared:** browser storage is blocked or you used a private window. Settings shows a warning when storage is blocked.
 - **Import says "damaged or from a newer version":** the file isn't a project export from this app, or it was edited. Re-export from the original.

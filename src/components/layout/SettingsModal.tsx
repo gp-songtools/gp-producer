@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CLAUDE_MODEL_PRESETS, EFFORT_OPTIONS, type EffortSetting } from '../../lib/settings';
+import * as db from '../../lib/db';
 import { formatBytes, getStorageInfo, requestPersistence, type StorageInfo } from '../../lib/storage';
+import { useImageStore } from '../../store/imageStore';
+import { useStorageStore } from '../../store/storageStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import GeminiModels from './GeminiModels';
 
@@ -39,12 +42,16 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
   const { anthropicKey, geminiKey, settings, persistent, setAnthropicKey, setGeminiKey, updateSettings, forgetKeys } =
     useSettingsStore();
   const [storage, setStorage] = useState<StorageInfo | null>(null);
+  const [older, setOlder] = useState<{ ids: string[]; count: number; bytes: number } | null>(null);
+  const [freed, setFreed] = useState<string | null>(null);
   const isPreset = CLAUDE_MODEL_PRESETS.some((p) => p.id === settings.claudeModel);
   const [customClaude, setCustomClaude] = useState(!isPreset);
 
   useEffect(() => {
     if (!open) return;
     void getStorageInfo().then(setStorage);
+    setFreed(null);
+    void db.olderImageVersions().then(setOlder).catch(() => setOlder(null));
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -145,6 +152,30 @@ export default function SettingsModal({ open, onClose }: { open: boolean; onClos
             {storage?.persisted === false && 'Not persistent: the browser may evict projects under disk pressure.'}
             {storage?.persisted === null && 'Storage status unavailable.'}
           </p>
+          {older && older.count > 0 && (
+            <div className="rounded border border-neutral-800 p-2" data-older-versions>
+              <p className="text-sm text-neutral-300">
+                <strong>{older.count}</strong> older image version{older.count === 1 ? '' : 's'} ({formatBytes(older.bytes)}) across all your projects. These are the "Earlier versions" you can switch back to. The current image of every anchor, character sheet and storyboard frame is kept.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!window.confirm(`Delete ${older.count} older image versions (${formatBytes(older.bytes)})? You won't be able to switch back to them. Current images are kept.`)) return;
+                  await db.deleteImages(older.ids);
+                  const id = useImageStore.getState().projectId;
+                  if (id) await useImageStore.getState().load(id);
+                  setFreed(`Freed about ${formatBytes(older.bytes)}.`);
+                  setOlder({ ids: [], count: 0, bytes: 0 });
+                  setStorage(await getStorageInfo());
+                  void useStorageStore.getState().refresh();
+                }}
+                className="mt-2 rounded border border-neutral-700 px-3 py-1 text-xs hover:bg-neutral-800"
+              >
+                Delete older versions
+              </button>
+            </div>
+          )}
+          {freed && <p role="status" className="text-sm text-emerald-300">{freed}</p>}
           {storage?.persisted === false && (
             <button
               type="button"

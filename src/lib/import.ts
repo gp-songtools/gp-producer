@@ -3,6 +3,7 @@ import { extForMime } from '../hooks/useBlobUrl';
 import { archiveSchema, type Archive } from '../schemas/archive';
 import type { ImageRecord, Project, RunRecord } from '../types/project';
 import * as db from './db';
+import { isQuotaError } from './storageErrors';
 import { parseLrc } from './lrc';
 
 /** Why a file couldn't be imported. The message is meant to be shown to the user as is. */
@@ -129,6 +130,7 @@ export async function importProjectArchive(file: Blob): Promise<Project> {
     for (const r of runs) await db.addRun(r);
   } catch (e) {
     await db.deleteProject(id).catch(() => undefined);
+    if (isQuotaError(e)) throw new ImportError(`Your browser doesn't have room for this project (the images alone are about ${(total / 1048576).toFixed(0)} MB). Nothing was imported. Free some space (Settings, Storage) or delete a project you no longer need, then try again.`);
     throw new ImportError(`Couldn't save the imported project: ${e instanceof Error ? e.message : String(e)}`);
   }
   return project;

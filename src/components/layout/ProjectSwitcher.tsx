@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as db from '../../lib/db';
 import { useProjectStore } from '../../store/projectStore';
+import { useStorageStore } from '../../store/storageStore';
 import type { Project } from '../../types/project';
 
 /** Project dropdown, rename field and "new" button. Keeps the current tab when switching. */
@@ -16,13 +17,17 @@ export default function ProjectSwitcher({ projectId }: { projectId: string }) {
 
   // The current project's name is rendered from the store, so the list only needs refreshing when switching.
   useEffect(() => {
-    void db.listProjects().then(setAll);
+    void db.listProjects().then(setAll).catch(() => undefined);
   }, [projectId]);
 
   const create = async () => {
     await flush();
-    const p = await db.createProject();
-    navigate(`/p/${p.id}/setup`);
+    try {
+      const p = await db.createProject();
+      navigate(`/p/${p.id}/setup`);
+    } catch (e) {
+      useStorageStore.getState().report(e);
+    }
   };
 
   return (

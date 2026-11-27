@@ -7,7 +7,9 @@ import { runPool } from '../lib/pool';
 import { generateSceneFrame, pickReferences, type AnchorLite, type SceneRef } from '../lib/sceneImages';
 import { resolveRole, type ModelRoles } from '../lib/settings';
 import { anchorOwner, sceneOwner, sheetOwner, type ImageOwner, type ImageRecord } from '../types/project';
+import { IMAGE_QUOTA_MESSAGE, isQuotaError } from '../lib/storageErrors';
 import { useSettingsStore } from './settingsStore';
+import { useStorageStore } from './storageStore';
 
 /** `blocked`: Gemini declined or answered in text (retrying can differ). `upload`: your file was rejected. `error`: anything else. */
 export type JobErrorKind = 'blocked' | 'upload' | 'error';
@@ -58,7 +60,9 @@ interface ImageState {
 }
 
 const errorMessage = (e: unknown): string =>
-  e instanceof ApiError || e instanceof ImageBlockedError || e instanceof UploadError
+  isQuotaError(e)
+    ? IMAGE_QUOTA_MESSAGE
+    : e instanceof ApiError || e instanceof ImageBlockedError || e instanceof UploadError
     ? e.message
     : `Something went wrong: ${e instanceof Error ? e.message : String(e)}`;
 
@@ -98,12 +102,14 @@ export const useImageStore = create<ImageState>((set, get) => {
       await produce(own.signal);
       await refreshOwner(projectId, owner);
       setJob(owner, null);
+      void useStorageStore.getState().refresh();
       return true;
     } catch (e) {
       if (isAbort(e)) {
         setJob(owner, null);
         return false;
       }
+      if (isQuotaError(e)) useStorageStore.getState().report(e);
       setJob(owner, { status: 'error', message: errorMessage(e), kind: errorKind(e) });
       throw e;
     } finally {
@@ -178,8 +184,12 @@ export const useImageStore = create<ImageState>((set, get) => {
 
     load: async (projectId) => {
       if (get().projectId !== projectId) set({ projectId, images: [], jobs: {}, batch: null, frameBatch: null });
-      const images = await db.listProjectImages(projectId);
-      if (get().projectId === projectId) set({ images });
+      try {
+        const images = await db.listProjectImages(projectId);
+        if (get().projectId === projectId) set({ images });
+      } catch (e) {
+        useStorageStore.getState().report(e);
+      }
     },
 
     generateAnchor: async (projectId, anchor, role) => {
@@ -236,21 +246,30 @@ export const useImageStore = create<ImageState>((set, get) => {
         await refreshOwner(projectId, owner);
         setJob(owner, null);
       } catch (e) {
+        if (isQuotaError(e)) useStorageStore.getState().report(e);
         setJob(owner, { status: 'error', message: errorMessage(e), kind: errorKind(e) });
       }
     },
 
     promote: async (projectId, id) => {
       const rec = get().images.find((r) => r.id === id);
-      await db.promoteImage(id);
-      if (rec) await refreshOwner(projectId, rec.ownerKey);
+      try {
+        await db.promoteImage(id);
+        if (rec) await refreshOwner(projectId, rec.ownerKey);
+      } catch (e) {
+        useStorageStore.getState().report(e);
+      }
     },
 
     removeCurrent: async (projectId, owner) => {
       const [current] = imagesForOwner(get().images, owner);
       if (!current) return;
-      await db.deleteImage(current.id);
-      await refreshOwner(projectId, owner);
+      try {
+        await db.deleteImage(current.id);
+        await refreshOwner(projectId, owner);
+      } catch (e) {
+        useStorageStore.getState().report(e);
+      }
     },
 
     cancelBatch: (key) => {

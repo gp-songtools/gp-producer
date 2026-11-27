@@ -219,3 +219,23 @@ export async function deleteSceneImagesAbove(projectId: string, sceneCount: numb
   for (const r of rows) tx.store.delete(r.id);
   await tx.done;
 }
+
+/** Images that are not the newest of their owner: the history kept for "Earlier versions". Across all projects. */
+export async function olderImageVersions(): Promise<{ ids: string[]; count: number; bytes: number }> {
+  const d = await db();
+  const all = (await d.getAll('images')) as ImageRecord[];
+  const newest = new Map<string, number>();
+  for (const r of all) {
+    const key = `${r.projectId}|${r.ownerKey}`;
+    newest.set(key, Math.max(newest.get(key) ?? 0, r.createdAt));
+  }
+  const old = all.filter((r) => r.createdAt < newest.get(`${r.projectId}|${r.ownerKey}`)!);
+  return { ids: old.map((r) => r.id), count: old.length, bytes: old.reduce((n, r) => n + (r.blob?.size ?? 0), 0) };
+}
+
+export async function deleteImages(ids: string[]): Promise<void> {
+  const d = await db();
+  const tx = d.transaction('images', 'readwrite');
+  for (const id of ids) tx.store.delete(id);
+  await tx.done;
+}

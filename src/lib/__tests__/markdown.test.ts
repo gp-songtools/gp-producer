@@ -108,7 +108,7 @@ describe('the user guide itself', () => {
       'Generate blueprint', 'Ask Claude to fix', 'Snap boundaries', 'Generate with Gemini', 'Copy prompt (with my lyrics)', 'Upload .lrc', 'Continue to Blueprint', 'Ready for Blueprint?',
       'Upgrade to Hero', 'Earlier versions', 'Draft mode', 'Generate missing', 'Retry failed', 'Regenerate outdated', 'Print storyboard', 'Revise scene with Claude', 'Ask Claude to revise', 'Accept revision',
       'Undo last revision', 'Copy timeline mark', 'Copy file tag', 'Add tag', 'Until', "I've checked these by ear", 'Download export bundle (.zip)', 'Export whole project (.zip)', 'Import project…', 'Forget keys',
-      'Test key & list models', 'Request persistent storage', 'Local audio', 'Paste Gemini&apos;s answer', 'Previous', 'Make character sheet', 'Download sheet', 'Download anchor', 'Regenerate character sheet', 'Remove sheet', 'Add name and colour swatches', 'Use the character sheet as this character',
+      'Test key & list models', 'Request persistent storage', 'Local audio', 'Paste Gemini&apos;s answer', 'Previous', 'Make character sheet', 'Download sheet', 'Download anchor', 'Regenerate character sheet', 'Remove sheet', 'Add name and colour swatches', 'Use the character sheet as this character', 'Try saving again', 'Export a backup', 'Free space…', 'Delete older versions', 'Open Settings',
     ];
     for (const l of labels) {
       const bare = l.replace('&apos;', "'");

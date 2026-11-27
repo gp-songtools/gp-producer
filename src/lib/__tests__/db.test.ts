@@ -211,3 +211,24 @@ describe('deleteSceneImagesAbove', () => {
     expect(await db.listProjectImages(b.id)).toHaveLength(1);
   });
 });
+
+describe('older image versions (for freeing space)', () => {
+  const mk = (id: string, projectId: string, ownerKey: ImageRecord['ownerKey'], createdAt: number, size: number): ImageRecord => ({ id, projectId, ownerKey, kind: 'anchor', blob: new Blob([new Uint8Array(size)], { type: 'image/png' }), mime: 'image/png', width: 1, height: 1, model: 'm', prompt: 'p', source: 'generated', createdAt });
+
+  it('finds everything except the newest image of each owner, in every project, and deletes only that', async () => {
+    await db.putImage(mk('a1', 'p1', 'anchor:x', 1, 100));
+    await db.putImage(mk('a2', 'p1', 'anchor:x', 2, 100));
+    await db.putImage(mk('a3', 'p1', 'anchor:x', 3, 100)); // newest of anchor:x
+    await db.putImage(mk('b1', 'p1', 'scene:1', 1, 50)); // only one: kept
+    await db.putImage(mk('c1', 'p2', 'anchor:x', 1, 10)); // same owner key, other project
+    await db.putImage(mk('c2', 'p2', 'anchor:x', 5, 10));
+    const o = await db.olderImageVersions();
+    expect(o.ids.sort()).toEqual(['a1', 'a2', 'c1']);
+    expect(o.count).toBe(3);
+    expect(o.bytes).toBe(210);
+    await db.deleteImages(o.ids);
+    expect((await db.listProjectImages('p1')).map((i) => i.id).sort()).toEqual(['a3', 'b1']);
+    expect((await db.listProjectImages('p2')).map((i) => i.id)).toEqual(['c2']);
+    expect((await db.olderImageVersions()).count).toBe(0);
+  });
+});

@@ -49,7 +49,7 @@ Claude and Gemini charge for use. The app asks before batches of images and coun
 
 ## Your data
 
-Projects (text, scenes, images, checklists, revisions) live in your browser's IndexedDB. Clearing site data, a private window or a different browser means no projects. **Back up with Export** (project list, or the Post tab); **Import project…** restores a backup as a new project.
+Projects (text, scenes, images, checklists, revisions) live in your browser's IndexedDB. The app warns you when storage is getting full and when a save fails (your edits then stay on screen so you can back up and free space; **Settings → Storage** can delete older image versions). Clearing site data, a private window or a different browser means no projects. **Back up with Export** (project list, or the Post tab); **Import project…** restores a backup as a new project.
 
 ## Deploying to GitHub Pages
 
